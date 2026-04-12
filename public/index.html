@@ -10,7 +10,7 @@
   .word {
     position: fixed; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: clamp(32px, 6vw, 110px);
+    font-size: clamp(22px, 4vw, 72px);
     font-style: italic; font-weight: 700; letter-spacing: -0.01em;
     color: #ff00aa;
     opacity: 0; pointer-events: none; z-index: 2;
@@ -20,14 +20,39 @@
   #app { position: fixed; inset: 0; z-index: 0; touch-action: pan-y; }
   .hint { position: fixed; left: 12px; bottom: 12px; font-size: 12px; color: #666; z-index: 1; pointer-events: none; }
   .scroll-cue { position: fixed; right: 16px; top: 50%; transform: translateY(-50%); writing-mode: vertical-rl; font-size: 11px; letter-spacing: 2px; color: #888; z-index: 1; }
+  .nav-link {
+    position: fixed;
+    font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive;
+    font-size: clamp(18px, 3vw, 42px);
+    font-weight: 700;
+    font-style: italic;
+    color: #ff00aa;
+    text-decoration: none;
+    z-index: 3;
+    opacity: 0;
+    pointer-events: none;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: #cc0088; }
+  #link-tienda   { top: 8dvh;  left: 6vw; }
+  #link-producto { top: 8dvh;  right: 6vw; }
+  #link-juegos   { bottom: 8dvh; left: 6vw; }
+  #link-contacto { bottom: 8dvh; right: 6vw; }
 </style>
 </head>
 <body>
   <div id="app"></div>
-  <div class="word" id="word-concha">concha</div>
-  <div class="word" id="word-frita">frita</div>
+  <div class="word" id="word-concha">concha frita</div>
+  <a class="nav-link" id="link-tienda" href="#">tienda</a>
+  <a class="nav-link" id="link-producto" href="#">producto</a>
+  <a class="nav-link" id="link-juegos" href="#">juegos</a>
+  <a class="nav-link" id="link-contacto" href="#">contacto</a>
   <div class="hint">scroll ↓</div>
   <div class="scroll-cue">SCROLL</div>
+
+  <script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://unpkg.com/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 
   <script type="importmap">
   {
@@ -103,7 +128,20 @@
     let smoothedScroll = 0;
     let ready = false;
     const wordConcha = document.getElementById('word-concha');
-    const wordFrita = document.getElementById('word-frita');
+    const links = [
+      document.getElementById('link-tienda'),
+      document.getElementById('link-producto'),
+      document.getElementById('link-juegos'),
+      document.getElementById('link-contacto'),
+    ];
+
+    // Mouse tracking for face-follow effect
+    const mouse = { tx: 0, ty: 0, cx: 0, cy: 0 };
+    const MAX_ROTATE = 0.3; // radians (~17 degrees)
+    addEventListener('mousemove', e => {
+      mouse.tx = (e.clientX / innerWidth - 0.5) * 2;   // -1 to 1
+      mouse.ty = (e.clientY / innerHeight - 0.5) * 2;  // -1 to 1
+    });
 
     new GLTFLoader().load('./concha-frita.glb', (gltf) => {
       const model = gltf.scene;
@@ -180,18 +218,21 @@
           camera.position.lerpVectors(camFar.pos, camNear.pos, k);
           controls.target.lerpVectors(camFar.target, camNear.target, k);
         } else {
-          const k = easeInOutCubic((s - 0.5) / 0.5);
-          const angle = k * Math.PI;
-          camera.position.set(Math.sin(angle) * closeRadius, closeHeight, Math.cos(angle) * closeRadius);
-          controls.target.set(0, closeHeight, 0);
+          camera.position.copy(camNear.pos);
+          controls.target.copy(camNear.target);
         }
         controls.enabled = s < 0.02;
 
+        // "concha" text fades in/out around midpoint
         const conchaK = Math.max(0, 1 - Math.abs(s - 0.5) / 0.14);
-        const fritaK = Math.max(0, Math.min(1, (s - 0.88) / 0.08));
         wordConcha.style.opacity = conchaK;
-        wordFrita.style.opacity = fritaK;
+
+
+        // Face follows mouse (smooth lerp)
+        mouse.cx += (mouse.tx - mouse.cx) * 0.06;
+        mouse.cy += (mouse.ty - mouse.cy) * 0.06;
       }
+
       if (anim) {
         const elapsed = (performance.now() - anim.start) / 1000;
         const t = Math.min(1, (elapsed * 1000) / anim.duration);
@@ -217,9 +258,35 @@
         const damp = Math.pow(1 - st, 2);
         pivot.rotation.x = Math.sin(e * 3.2) * 0.18 * damp;
         if (st >= 1) { pivot.rotation.set(0, 0, 0); settle = null; }
+      } else if (ready) {
+        // Mouse-follow rotation (only when intro animations are done)
+        pivot.rotation.y = mouse.cx * MAX_ROTATE;
+        pivot.rotation.x = mouse.cy * -MAX_ROTATE * 0.5;
       }
+
       controls.update();
       renderer.render(scene, camera);
+    });
+
+    // GSAP: links appear once on scroll and stay forever
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.set('.nav-link', { y: 80, opacity: 0 });
+    gsap.to('.nav-link', {
+      y: 0,
+      opacity: 1,
+      duration: 0.8,
+      ease: 'power3.out',
+      stagger: 0.1,
+      scrollTrigger: {
+        trigger: document.body,
+        start: 'top -40%',
+        once: true,
+      },
+      onComplete: () => {
+        document.querySelectorAll('.nav-link').forEach(el => {
+          el.style.pointerEvents = 'auto';
+        });
+      }
     });
   </script>
 </body>
