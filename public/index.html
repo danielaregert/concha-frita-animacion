@@ -2,34 +2,44 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Hoy no hagas nada</title>
-    <!-- Meta básicos -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0213">
+    <title>Hoy no hagas nada - Daniela Regert</title>
+    <!-- Meta basicos -->
     <meta name="description" content="Porque nada importa. ¿Qué es lo que importa? Ahí está lo que tanto te importa.">
-
-<!-- Open Graph (Facebook, WhatsApp, LinkedIn, etc.) -->
-<meta property="og:title" content="Hoy no hagas nada.">
-<meta property="og:description" content="Porque nada importa. ¿Qué es lo que importa? Ahí está lo que tanto te importa.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://danielaregert.com.ar/">
-<meta property="og:image" content="https://nohagasnada.danielaregert.com.ar/ser-piola.png">
-
-<!-- Twitter -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Hoy no hagas nada.">
-<meta name="twitter:description" content="Porque nada importa. ¿Qué es lo que importa? Ahí está lo que tanto te importa.">
-<meta name="twitter:image" content="https://nohagasnada.danielaregert.com.ar/ser-piola.png">
+    <!-- Open Graph (Facebook, WhatsApp, LinkedIn, etc.) -->
+    <meta property="og:title" content="Hoy no hagas nada.">
+    <meta property="og:description" content="Porque nada importa. ¿Qué es lo que importa? Ahí está lo que tanto te importa.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://danielaregert.com.ar/">
+    <meta property="og:image" content="https://nohagasnada.danielaregert.com.ar/ser-piola.png">
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Hoy no hagas nada.">
+    <meta name="twitter:description" content="Porque nada importa. ¿Qué es lo que importa? Ahí está lo que tanto te importa.">
+    <meta name="twitter:image" content="https://nohagasnada.danielaregert.com.ar/ser-piola.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link rel="icon" type="image/x-icon" href="https://danielaregert.com.ar/img/dani-favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        * { margin: 0; padding: 0; }
-        body { background: #0b0213; overflow: hidden; }
-        canvas { display: block; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            background: #0b0213; overflow: hidden;
+            width: 100%;
+            height: 100vh;
+            height: 100svh; /* viewport pequeño (URL bar visible), soporte moderno */
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        canvas { display: block; touch-action: none; }
         .hud {
             position: absolute;
             bottom: 20px; width: 100%; text-align: center;
-            color: #fff; font-family: 'Comic Sans MS', cursive; opacity: 0.4;
+            color: #fff; font-family: 'Comic Neue', 'Comic Sans MS', cursive; opacity: 0.4;
             pointer-events: none; text-transform: uppercase; letter-spacing: 3px;
             font-size: 12px;
         }
@@ -38,12 +48,13 @@
             width: 100%;
             text-align: center;
             pointer-events: none;
-            font-family: 'Comic Sans MS', cursive;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             color: #fff;
             opacity: 0;
             transition: opacity 0.6s ease;
         }
         .placa.visible { opacity: 1; }
+        .placa { padding: 0 16px; }
         #p1 { top: 36%; font-size: 44px; font-weight: bold; }
         #p2 { top: 46%; font-size: 30px; font-weight: 300; letter-spacing: 2px; }
         #p3 { top: 36%; font-size: 34px; }
@@ -62,7 +73,7 @@
         }
         #responder-wrap.visible { opacity: 1; }
         #btn-responder {
-            font-family: 'Comic Sans MS', cursive;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 18px;
             padding: 14px 40px;
             border: 1px solid rgba(255,255,255,0.5);
@@ -96,7 +107,7 @@
             border: 1px solid rgba(255,255,255,0.3);
             border-radius: 16px;
             color: #fff;
-            font-family: 'Comic Sans MS', cursive;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 18px;
             padding: 16px;
             resize: none;
@@ -109,7 +120,7 @@
             gap: 12px;
         }
         #respuesta-overlay button {
-            font-family: 'Comic Sans MS', cursive;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 16px;
             padding: 10px 28px;
             border: 1px solid rgba(255,255,255,0.4);
@@ -128,7 +139,7 @@
             z-index: 1000;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            color: #fff; font-family: 'Comic Sans MS', cursive;
+            color: #fff; font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             transition: opacity 0.8s ease;
         }
         #loader.done { opacity: 0; pointer-events: none; }
@@ -148,7 +159,7 @@
         }
         #btn-entrar {
             margin-top: 30px;
-            font-family: 'Comic Sans MS', cursive;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 20px;
             padding: 14px 44px;
             border: 1px solid rgba(255,255,255,0.5);
@@ -175,7 +186,7 @@
             position: fixed;
             bottom: 12px;
             right: 16px;
-            font-family: 'Comic Sans MS', cursive;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 11px;
             letter-spacing: 1px;
             color: rgba(255, 255, 255, 0.5);
@@ -184,6 +195,25 @@
             transition: color 0.3s;
         }
         #credit:hover { color: rgba(255, 255, 255, 0.9); }
+
+        @media (max-width: 640px) {
+            /* Solo ajustamos el popup de respuesta para mobile */
+            #respuesta-overlay textarea {
+                width: 88%;
+                font-size: 16px; /* evita el auto-zoom de iOS al focus */
+                height: 110px;
+                padding: 14px;
+            }
+            #respuesta-overlay .overlay-btns {
+                width: 88%;
+                justify-content: center;
+            }
+            #respuesta-overlay button {
+                font-size: 15px;
+                padding: 12px 26px;
+                min-height: 44px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -212,8 +242,8 @@
 </div>
 
 <script>
-    // === PRELOADER (música + gltf + textura) ===
-    const LOAD_TARGETS = ['music', 'gltf', 'texture'];
+    // === PRELOADER (música + gltf + textura + fuente) ===
+    const LOAD_TARGETS = ['music', 'gltf', 'texture', 'font'];
     const loaded = new Set();
     const loaderMsg = document.getElementById('loader-msg');
     const loaderBar = document.querySelector('#loader-bar > div');
@@ -227,6 +257,20 @@
             if (loaderMsg) loaderMsg.textContent = 'listo';
             if (btnEntrar) btnEntrar.classList.add('ready');
         }
+    }
+
+    // Cargar Comic Neue antes de que "entrar" quede disponible
+    // (asi el canvas de las frases rendea con la tipografia correcta)
+    if (document.fonts && document.fonts.load) {
+        Promise.all([
+            document.fonts.load("400 16px 'Comic Neue'"),
+            document.fonts.load("700 56px 'Comic Neue'")
+        ]).then(() => markLoaded('font'))
+          .catch(() => markLoaded('font'));
+        // Fallback por si el font tarda demasiado o falla silencioso
+        setTimeout(() => markLoaded('font'), 5000);
+    } else {
+        markLoaded('font');
     }
 
     const scene = new THREE.Scene();
@@ -592,7 +636,7 @@
     // Boton apagar / prender sonido
     const soundBtn = document.createElement('button');
     soundBtn.textContent = 'apagar sonido';
-    soundBtn.style.cssText = 'position:fixed;top:20px;left:20px;z-index:1000;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:rgba(0,0,0,0.35);color:#fff;font-family:"Comic Sans MS",cursive;font-size:13px;letter-spacing:1px;cursor:pointer;';
+    soundBtn.style.cssText = 'position:fixed;top:20px;left:20px;z-index:1000;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:rgba(0,0,0,0.35);color:#fff;font-family:'Comic Neue','Comic Sans MS',cursive;font-size:13px;letter-spacing:1px;cursor:pointer;';
     soundBtn.addEventListener('click', () => {
         soundOn = !soundOn;
         if (soundOn) {
@@ -609,7 +653,7 @@
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const fontSize = 56;
-        const font = `bold ${fontSize}px "Comic Sans MS", cursive`;
+        const font = `bold ${fontSize}px 'Comic Neue', 'Comic Sans MS', cursive`;
         ctx.font = font;
         const metrics = ctx.measureText(text);
         const padX = 28;
@@ -769,20 +813,33 @@
         }
     }
 
-    // === MOUSE DRAG PARA ROTAR CAMARA ===
-    let isDragging = false, prevX = 0, prevY = 0;
+    // === DRAG PARA ROTAR CAMARA (mouse + touch via Pointer Events) ===
+    let isDragging = false, prevX = 0, prevY = 0, dragPointerId = null;
     let userAngleX = 0, userAngleY = 0;
-    document.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
-    document.addEventListener('mouseup', () => isDragging = false);
-    document.addEventListener('mousemove', e => {
-        if (isDragging) {
-            userAngleX += (e.clientX - prevX) * 0.005;
-            userAngleY += (e.clientY - prevY) * 0.003;
-            userAngleY = Math.max(-0.5, Math.min(0.8, userAngleY));
-            prevX = e.clientX;
-            prevY = e.clientY;
-        }
+    const canvas3d = renderer.domElement;
+    canvas3d.addEventListener('pointerdown', e => {
+        // Ignorar si el target esta dentro de un boton/textarea
+        if (e.target !== canvas3d) return;
+        isDragging = true;
+        dragPointerId = e.pointerId;
+        prevX = e.clientX; prevY = e.clientY;
+        canvas3d.setPointerCapture(e.pointerId);
     });
+    canvas3d.addEventListener('pointermove', e => {
+        if (!isDragging || e.pointerId !== dragPointerId) return;
+        userAngleX += (e.clientX - prevX) * 0.005;
+        userAngleY += (e.clientY - prevY) * 0.003;
+        userAngleY = Math.max(-0.5, Math.min(0.8, userAngleY));
+        prevX = e.clientX;
+        prevY = e.clientY;
+    });
+    const endDrag = e => {
+        if (e.pointerId !== dragPointerId) return;
+        isDragging = false;
+        dragPointerId = null;
+    };
+    canvas3d.addEventListener('pointerup', endDrag);
+    canvas3d.addEventListener('pointercancel', endDrag);
 
     // === ANIMACION ===
     const clock = new THREE.Clock();
@@ -793,7 +850,9 @@
         const dt = clock.getDelta();
 
         // Camara fija de frente a la tela
-        const radius = 16;
+        // En pantallas verticales (mobile retrato) acercamos para compensar el aspect estrecho
+        const aspectNow = window.innerWidth / window.innerHeight;
+        const radius = aspectNow >= 1 ? 16 : (16 - Math.min(5, (1 - aspectNow) * 10));
         const camY = 3 + userAngleY * 10;
         camera.position.set(userAngleX * 5, camY, radius);
         camera.lookAt(0, 0, 0);
@@ -844,6 +903,9 @@
             const p = bgMusic.play();
             if (p && p.catch) p.catch(() => {});
         }
+        // Forzar resize: en iOS Safari la URL bar cambia de tamanio al interactuar
+        // y el canvas puede haber quedado chico. Re-ajustamos al viewport real.
+        resizeToViewport();
         runPlacas();
     }
 
@@ -904,11 +966,13 @@
         setTimeout(() => rainPastImportancias(cutoffIso), 1200);
     });
 
-    window.addEventListener('resize', () => {
+    function resizeToViewport() {
         camera.aspect = innerWidth / innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(innerWidth, innerHeight);
-    });
+    }
+    window.addEventListener('resize', resizeToViewport);
+    window.addEventListener('orientationchange', () => setTimeout(resizeToViewport, 300));
 </script>
 <div id="credit">by <a href="https://danielaregert.com.ar/" style="color:white">Daniela Regert</a></div>
 </body>
