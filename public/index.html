@@ -61,6 +61,7 @@
             position: absolute;
             width: 100%;
             text-align: center;
+            z-index: 10;
         }
         .placa-group > .placa {
             position: static;
@@ -90,7 +91,7 @@
         #btn-responder {
             font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 18px;
-            padding: 14px 40px;
+            padding: 16px 44px;
             border: 1px solid rgba(255,255,255,0.5);
             border-radius: 50px;
             background: transparent;
@@ -98,10 +99,19 @@
             cursor: pointer;
             letter-spacing: 2px;
             transition: background 0.3s, border-color 0.3s;
+            touch-action: manipulation;
+            -webkit-appearance: none;
+            min-height: 48px;
         }
-        #btn-responder:hover {
-            background: rgba(255,255,255,0.1);
+        #btn-responder:active {
+            background: rgba(255,255,255,0.15);
             border-color: #fff;
+        }
+        @media (hover: hover) {
+            #btn-responder:hover {
+                background: rgba(255,255,255,0.1);
+                border-color: #fff;
+            }
         }
         #respuesta-overlay {
             display: none;
@@ -147,7 +157,14 @@
             letter-spacing: 1px;
             transition: background 0.3s;
         }
-        #respuesta-overlay button:hover { background: rgba(255,255,255,0.15); }
+        #respuesta-overlay button {
+            touch-action: manipulation;
+            -webkit-appearance: none;
+        }
+        #respuesta-overlay button:active { background: rgba(255,255,255,0.2); }
+        @media (hover: hover) {
+            #respuesta-overlay button:hover { background: rgba(255,255,255,0.15); }
+        }
 
         #loader {
             position: fixed; inset: 0;
@@ -193,10 +210,17 @@
             opacity: 1;
             pointer-events: auto;
         }
-        #btn-entrar:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: #fff;
-            transform: scale(1.05);
+        #btn-entrar { touch-action: manipulation; -webkit-appearance: none; }
+        #btn-entrar:active {
+            background: rgba(255,255,255,0.15);
+            transform: scale(0.98);
+        }
+        @media (hover: hover) {
+            #btn-entrar:hover {
+                background: rgba(255,255,255,0.1);
+                border-color: #fff;
+                transform: scale(1.05);
+            }
         }
         #credit {
             position: fixed;
