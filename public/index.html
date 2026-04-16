@@ -56,10 +56,25 @@
         }
         .placa.visible { opacity: 1; }
         .placa { padding: 0 16px; }
-        #p1 { top: 36%; font-size: 44px; font-weight: bold; }
-        #p2 { top: 46%; font-size: 30px; font-weight: 300; letter-spacing: 2px; }
-        #p3 { top: 36%; font-size: 34px; }
-        #p4 { top: 46%; font-size: 38px; font-weight: bold; }
+        /* Placas agrupadas: fluyen naturalmente, nunca se superponen */
+        .placa-group {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+        }
+        .placa-group > .placa {
+            position: static;
+            width: auto;
+        }
+        .placa-group .placa + .placa {
+            margin-top: 10px;
+        }
+        #g1 { top: 36%; }
+        #g2 { top: 36%; }
+        #p1 { font-size: 44px; font-weight: bold; }
+        #p2 { font-size: 30px; font-weight: 300; letter-spacing: 2px; }
+        #p3 { font-size: 34px; }
+        #p4 { font-size: 38px; font-weight: bold; }
         #p5 { top: 40%; font-size: 42px; font-weight: bold; }
         #p6 { top: 36%; font-size: 30px; font-weight: 300; }
         #p7 { top: 46%; font-size: 34px; }
@@ -225,10 +240,14 @@
     <button id="btn-entrar">entrar</button>
 </div>
 <div class="hud">Arrastra para rotar</div>
-<div id="p1" class="placa">Hoy no hagas nada</div>
-<div id="p2" class="placa">Nada productivo.</div>
-<div id="p3" class="placa">La gente que te amarga,</div>
-<div id="p4" class="placa">Mandalos a la mierda</div>
+<div id="g1" class="placa-group">
+    <div id="p1" class="placa">Hoy no hagas nada</div>
+    <div id="p2" class="placa">Nada productivo.</div>
+</div>
+<div id="g2" class="placa-group">
+    <div id="p3" class="placa">La gente que te amarga,</div>
+    <div id="p4" class="placa">Mandalos a la mierda</div>
+</div>
 <div id="p5" class="placa">Nada importa.</div>
 <div id="p6" class="placa">¿Qué te importa?</div>
 <div id="p7" class="placa">¿Qué es lo que a vos te importa?</div>
