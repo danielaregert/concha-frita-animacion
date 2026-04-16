@@ -499,7 +499,7 @@
     // Fallback: si el navegador no dispara canplaythrough, destrabamos a los 8s
     setTimeout(() => markLoaded('music'), 8000);
 
-    // Sonido procedural de aterrizaje via Web Audio
+    // Sonido procedural de gota via Web Audio (sweep de pitch + click filtrado)
     let audioCtx = null;
     function ensureAudio() {
         if (audioCtx) return audioCtx;
@@ -520,31 +520,43 @@
         if (ctx.state !== 'running') ctx.resume();
         const now = ctx.currentTime;
 
+        // Gota: sinusoide con sweep rapido de pitch descendente
         const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
         osc.type = 'sine';
-        const baseFreq = highlight ? 520 : 260;
-        const freq = baseFreq + (Math.random() - 0.5) * 80;
-        osc.frequency.setValueAtTime(freq * 1.6, now);
-        osc.frequency.exponentialRampToValueAtTime(freq, now + 0.08);
+        const basePitch = highlight ? 1100 : 750;
+        const startFreq = basePitch + (Math.random() - 0.5) * basePitch * 0.3;
+        osc.frequency.setValueAtTime(startFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(startFreq * 0.4, now + 0.05);
 
-        const peak = highlight ? 0.55 : 0.3;
+        const gain = ctx.createGain();
+        const peak = highlight ? 0.45 : 0.22;
+        const decay = highlight ? 0.13 : 0.09;
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(peak, now + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + (highlight ? 0.4 : 0.22));
+        gain.gain.exponentialRampToValueAtTime(peak, now + 0.003);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
 
         osc.connect(gain).connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.5);
+        osc.stop(now + 0.25);
 
-        const buf = ctx.createBuffer(1, 512, ctx.sampleRate);
+        // Click de salpicadura: ruido corto filtrado
+        const buf = ctx.createBuffer(1, 256, ctx.sampleRate);
         const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+        for (let i = 0; i < data.length; i++) {
+            const t = i / data.length;
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2);
+        }
         const noise = ctx.createBufferSource();
         noise.buffer = buf;
+
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 1800 + Math.random() * 800;
+        bp.Q.value = 5;
+
         const ng = ctx.createGain();
-        ng.gain.value = highlight ? 0.18 : 0.09;
-        noise.connect(ng).connect(ctx.destination);
+        ng.gain.value = highlight ? 0.12 : 0.06;
+        noise.connect(bp).connect(ng).connect(ctx.destination);
         noise.start(now);
     }
 
@@ -571,31 +583,35 @@
         const font = `bold ${fontSize}px "Comic Sans MS", cursive`;
         ctx.font = font;
         const metrics = ctx.measureText(text);
-        const pad = 24;
-        canvas.width  = Math.ceil(metrics.width + pad * 2);
-        canvas.height = fontSize + pad * 2;
+        const padX = 28;
+        const padY = 70; // mas colchon vertical para que nunca se corte
+        canvas.width  = Math.ceil(metrics.width + padX * 2);
+        canvas.height = fontSize + padY * 2;
 
         ctx.font = font;
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'left';
         // Sombra suave
         ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillText(text, pad + 2, canvas.height / 2 + 2);
+        ctx.fillText(text, padX + 2, canvas.height / 2 + 2);
         // Color
         const tints = ['#ffffff', '#ffd4e5', '#ffb3d1', '#c2e7ff', '#ffe08a'];
         ctx.fillStyle = tints[Math.floor(Math.random() * tints.length)];
-        ctx.fillText(text, pad, canvas.height / 2);
+        ctx.fillText(text, padX, canvas.height / 2);
 
         const tex = new THREE.CanvasTexture(canvas);
         tex.anisotropy = 8;
         const mat = new THREE.MeshBasicMaterial({
             map: tex, transparent: true, side: THREE.DoubleSide, alphaTest: 0.01
         });
-        const aspect = canvas.width / canvas.height;
-        const h = 1.1;
-        const w = h * aspect;
+        // Escala fija: que el texto tenga un tamanio consistente en 3D,
+        // y el plano crezca proporcional al padding del canvas.
+        const TEXT_WORLD_HEIGHT = 0.55;
+        const scale = TEXT_WORLD_HEIGHT / fontSize;
+        const h = canvas.height * scale;
+        const w = canvas.width  * scale;
         const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-        mesh.castShadow = false; // evita sombra rectangular bajo el texto
+        mesh.castShadow = false;
         return { mesh, width: w, height: h };
     }
 
@@ -660,8 +676,15 @@
         const key = pileKey(imp.mesh.position.x, imp.mesh.position.z);
         const stacked = PILE_GRID.get(key) || 0;
         PILE_GRID.set(key, stacked + 1);
-        imp.targetY = FLOOR_Y + 0.01 + stacked * PILE_THICKNESS;
-        imp.targetRotZ = (Math.random() - 0.5) * Math.PI * 0.5; // orientacion random al acostarse
+
+        // Todas planas boca arriba (sin inclinacion)
+        imp.targetRotX = -Math.PI / 2;
+        imp.targetRotY = 0;
+        imp.targetRotZ = (Math.random() - 0.5) * Math.PI * 0.5; // solo giran en su propio plano
+
+        // Apenas por encima del piso, apiladas
+        imp.targetY = FLOOR_Y + 0.02 + stacked * PILE_THICKNESS;
+
         imp.restPhase = 1;
         playLandSound(imp.highlight);
     }
@@ -680,25 +703,28 @@
                 imp.mesh.rotation.y += imp.vrotY * dt;
                 imp.mesh.rotation.z += imp.vrotZ * dt;
 
-                if (imp.mesh.position.y <= FLOOR_Y + 0.3) {
-                    imp.mesh.position.y = FLOOR_Y + 0.3;
+                // Gatillo de aterrizaje subido para que el plano (mas alto ahora)
+                // no clippee contra el piso mientras esta tumbleando
+                if (imp.mesh.position.y <= FLOOR_Y + 1.0) {
+                    imp.mesh.position.y = FLOOR_Y + 1.0;
                     layFlat(imp);
                 }
             } else if (imp.restPhase === 1) {
-                // Acomodandose: acuesta boca arriba y baja a la capa de pila
+                // Acomodandose: se inclina a la orientacion objetivo
                 const k = 8 * dt;
                 imp.mesh.position.y += (imp.targetY - imp.mesh.position.y) * k;
-                imp.mesh.rotation.x += ((-Math.PI / 2) - imp.mesh.rotation.x) * k;
-                imp.mesh.rotation.y += (0 - imp.mesh.rotation.y) * k;
+                imp.mesh.rotation.x += (imp.targetRotX - imp.mesh.rotation.x) * k;
+                imp.mesh.rotation.y += (imp.targetRotY - imp.mesh.rotation.y) * k;
                 imp.mesh.rotation.z += (imp.targetRotZ - imp.mesh.rotation.z) * k;
                 // Frenado lateral suave hasta quietud
                 imp.mesh.position.x += imp.vx * dt;
                 imp.mesh.position.z += imp.vz * dt;
                 imp.vx *= 0.85; imp.vz *= 0.85;
                 if (Math.abs(imp.mesh.position.y - imp.targetY) < 0.01 &&
-                    Math.abs(imp.mesh.rotation.x + Math.PI / 2) < 0.02) {
+                    Math.abs(imp.mesh.rotation.x - imp.targetRotX) < 0.02) {
                     imp.mesh.position.y = imp.targetY;
-                    imp.mesh.rotation.x = -Math.PI / 2;
+                    imp.mesh.rotation.x = imp.targetRotX;
+                    imp.mesh.rotation.y = imp.targetRotY;
                     imp.mesh.rotation.z = imp.targetRotZ;
                     imp.restPhase = 2;
                 }
