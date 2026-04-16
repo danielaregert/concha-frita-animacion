@@ -329,8 +329,12 @@
     const clothGeo = new THREE.ParametricGeometry((u,v,t)=>t.setScalar(0), clothSegs, clothSegs);
     const clothTex = new THREE.TextureLoader().load(
         'https://images.unsplash.com/photo-1541701494587-cb58502866ab?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&h=800&q=80',
-        () => markLoaded('texture')
+        () => markLoaded('texture'),
+        undefined,
+        () => markLoaded('texture') // si falla, seguimos igual
     );
+    // Fallback por timeout: si la textura tarda mas de 10s, destrabamos
+    setTimeout(() => markLoaded('texture'), 10000);
     clothTex.anisotropy = 16;
     const clothMesh = new THREE.Mesh(clothGeo, new THREE.MeshStandardMaterial({ map: clothTex, roughness: 0.5, metalness: 0.1, side: THREE.DoubleSide }));
     clothMesh.castShadow = true; clothMesh.receiveShadow = true;
@@ -636,7 +640,7 @@
     // Boton apagar / prender sonido
     const soundBtn = document.createElement('button');
     soundBtn.textContent = 'apagar sonido';
-    soundBtn.style.cssText = 'position:fixed;top:20px;left:20px;z-index:1000;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:rgba(0,0,0,0.35);color:#fff;font-family:'Comic Neue','Comic Sans MS',cursive;font-size:13px;letter-spacing:1px;cursor:pointer;';
+    soundBtn.style.cssText = "position:fixed;top:20px;left:20px;z-index:1000;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:rgba(0,0,0,0.35);color:#fff;font-family:'Comic Neue','Comic Sans MS',cursive;font-size:13px;letter-spacing:1px;cursor:pointer;";
     soundBtn.addEventListener('click', () => {
         soundOn = !soundOn;
         if (soundOn) {
