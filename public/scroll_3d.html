@@ -96,7 +96,8 @@
             background: rgba(0,0,0,0.85);
             z-index: 100;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start; /* contenido arriba, el teclado no lo tapa */
+            padding-top: 14vh;
             flex-direction: column;
         }
         #respuesta-overlay.active { display: flex; }
@@ -953,6 +954,12 @@
     });
     document.getElementById('btn-cerrar').addEventListener('click', () => {
         document.getElementById('respuesta-overlay').classList.remove('active');
+    });
+    // Tambien cerrar tocando el fondo oscuro (fuera del textarea/botones)
+    document.getElementById('respuesta-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'respuesta-overlay') {
+            e.currentTarget.classList.remove('active');
+        }
     });
     document.getElementById('btn-enviar').addEventListener('click', () => {
         const textarea = document.getElementById('respuesta-overlay').querySelector('textarea');
