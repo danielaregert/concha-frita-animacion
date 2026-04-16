@@ -71,6 +71,7 @@
         }
         #g1 { top: 36%; }
         #g2 { top: 36%; }
+        #g3 { top: 36%; }
         #p1 { font-size: 44px; font-weight: bold; }
         #p2 { font-size: 30px; font-weight: 300; letter-spacing: 2px; }
         #p3 { font-size: 34px; }
@@ -79,14 +80,11 @@
         #p6 { top: 36%; font-size: 30px; font-weight: 300; }
         #p7 { top: 36%; font-size: 34px; }
         #responder-wrap {
-            position: absolute;
-            top: 58%;
-            width: 100%;
+            margin-top: 28px;
             text-align: center;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.6s ease;
-            z-index: 10;
         }
         #responder-wrap.visible { opacity: 1; pointer-events: auto; }
         #btn-responder {
@@ -250,9 +248,11 @@
 </div>
 <div id="p5" class="placa">Nada importa.</div>
 <div id="p6" class="placa">¿Qué te importa?</div>
-<div id="p7" class="placa">¿Qué es lo que a vos te importa?</div>
-<div id="responder-wrap">
-    <button id="btn-responder">Responder</button>
+<div id="g3" class="placa-group">
+    <div id="p7" class="placa">¿Qué es lo que a vos te importa?</div>
+    <div id="responder-wrap">
+        <button id="btn-responder">Responder</button>
+    </div>
 </div>
 <div id="respuesta-overlay">
     <textarea placeholder="Escribí lo que te importa..." maxlength="200"></textarea>
