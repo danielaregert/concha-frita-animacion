@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tres De</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        * { margin: 0; padding: 0; }
+        body { background: #0b0213; overflow: hidden; }
+        canvas { display: block; }
+        .hud {
+            position: absolute;
+            bottom: 20px; width: 100%; text-align: center;
+            color: #fff; font-family: 'Comic Sans MS', cursive; opacity: 0.4;
+            pointer-events: none; text-transform: uppercase; letter-spacing: 3px;
+            font-size: 12px;
+        }
+        .placa {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            font-family: 'Comic Sans MS', cursive;
+            color: #fff;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+        .placa.visible { opacity: 1; }
+        #p1 { top: 36%; font-size: 44px; font-weight: bold; }
+        #p2 { top: 46%; font-size: 30px; font-weight: 300; letter-spacing: 2px; }
+        #p3 { top: 36%; font-size: 34px; }
+        #p4 { top: 46%; font-size: 38px; font-weight: bold; }
+        #p5 { top: 40%; font-size: 42px; font-weight: bold; }
+        #p6 { top: 36%; font-size: 30px; font-weight: 300; }
+        #p7 { top: 46%; font-size: 34px; }
+        #responder-wrap {
+            position: absolute;
+            top: 58%;
+            width: 100%;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            z-index: 10;
+        }
+        #responder-wrap.visible { opacity: 1; }
+        #btn-responder {
+            font-family: 'Comic Sans MS', cursive;
+            font-size: 18px;
+            padding: 14px 40px;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 50px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        #btn-responder:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: #fff;
+        }
+        #respuesta-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        #respuesta-overlay.active { display: flex; }
+        #respuesta-overlay textarea {
+            width: 80%;
+            max-width: 500px;
+            height: 120px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 16px;
+            color: #fff;
+            font-family: 'Comic Sans MS', cursive;
+            font-size: 18px;
+            padding: 16px;
+            resize: none;
+            outline: none;
+        }
+        #respuesta-overlay textarea::placeholder { color: rgba(255,255,255,0.3); }
+        #respuesta-overlay .overlay-btns {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+        }
+        #respuesta-overlay button {
+            font-family: 'Comic Sans MS', cursive;
+            font-size: 16px;
+            padding: 10px 28px;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 50px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: background 0.3s;
+        }
+        #respuesta-overlay button:hover { background: rgba(255,255,255,0.15); }
+    </style>
+</head>
+<body>
+<div class="hud">Arrastra para rotar</div>
+<div id="p1" class="placa">Hoy no hagas nada</div>
+<div id="p2" class="placa">Nada productivo.</div>
+<div id="p3" class="placa">La gente que te amarga,</div>
+<div id="p4" class="placa">Mandalos a la mierda</div>
+<div id="p5" class="placa">Nada importa.</div>
+<div id="p6" class="placa">¿Qué te importa?</div>
+<div id="p7" class="placa">¿Qué es lo que a vos te importa?</div>
+<div id="responder-wrap">
+    <button id="btn-responder">Responder</button>
+</div>
+<div id="respuesta-overlay">
+    <textarea placeholder="Escribí lo que te importa..."></textarea>
+    <div class="overlay-btns">
+        <button id="btn-enviar">Enviar</button>
+        <button id="btn-cerrar">Cerrar</button>
+    </div>
+</div>
+
+<script>
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2('#0b0213', 0.012);
+
+    const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // === LUCES ===
+    const ambient = new THREE.AmbientLight(0x222222);
+    scene.add(ambient);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(30, 50, 30);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    scene.add(dirLight);
+
+    const accentLight = new THREE.PointLight(0x2596be, 1.5, 60);
+    accentLight.position.set(-8, 6, 10);
+    scene.add(accentLight);
+
+    // (spotlight y cono removidos)
+
+    // === PISO ===
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -5;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // === TELA FISICA (Verlet) ===
+    const MASS = 0.5, TIMESTEP = 18/1000, TIMESTEP_SQ = TIMESTEP*TIMESTEP, DRAG = 0.96;
+    class Particle { constructor(x,y,z){ this.position=new THREE.Vector3(x,y,z); this.previous=new THREE.Vector3(x,y,z); this.original=new THREE.Vector3(x,y,z); this.mass=MASS; }}
+    class Cloth {
+        constructor(w,h,size){
+            this.w=w; this.h=h; this.particles=[]; this.constraints=[];
+            const sx=size/w, sy=size/h;
+            for(let v=0;v<=h;v++) for(let u=0;u<=w;u++) this.particles.push(new Particle((u/w-0.5)*size, 8, (v/h-0.5)*size));
+            const idx=(u,v)=>u+v*(w+1);
+            for(let v=0;v<=h;v++) for(let u=0;u<=w;u++){
+                if(u<w) this.constraints.push([this.particles[idx(u,v)],this.particles[idx(u+1,v)],sx]);
+                if(v<h) this.constraints.push([this.particles[idx(u,v)],this.particles[idx(u,v+1)],sy]);
+            }
+        }
+    }
+    const clothSegs = 30, clothSize = 16;
+    const cloth = new Cloth(clothSegs, clothSegs, clothSize);
+    const clothGeo = new THREE.ParametricGeometry((u,v,t)=>t.setScalar(0), clothSegs, clothSegs);
+    const clothTex = new THREE.TextureLoader().load('https://images.unsplash.com/photo-1541701494587-cb58502866ab?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&h=800&q=80');
+    clothTex.anisotropy = 16;
+    const clothMesh = new THREE.Mesh(clothGeo, new THREE.MeshStandardMaterial({ map: clothTex, roughness: 0.5, metalness: 0.1, side: THREE.DoubleSide }));
+    clothMesh.castShadow = true; clothMesh.receiveShadow = true;
+    scene.add(clothMesh);
+
+    const clothGravity = new THREE.Vector3(0, -9.81 * 8, 0);
+    function simulateCloth(time) {
+        const ws = Math.cos(time/2000)*10+25;
+        const wf = new THREE.Vector3(Math.sin(time/2000), Math.cos(time/3000), Math.sin(time/1000)).normalize().multiplyScalar(ws);
+        for(let i=0;i<cloth.particles.length;i++){
+            const p=cloth.particles[i];
+            const f=new THREE.Vector3().copy(clothGravity).add(wf);
+            const v=new THREE.Vector3().subVectors(p.position,p.previous).multiplyScalar(DRAG);
+            p.previous.copy(p.position);
+            p.position.add(v).add(f.multiplyScalar(p.mass*TIMESTEP_SQ));
+        }
+        for(let it=0;it<8;it++){
+            for(let i=0;i<cloth.constraints.length;i++){
+                const c=cloth.constraints[i];
+                const d=new THREE.Vector3().subVectors(c[1].position,c[0].position);
+                const l=d.length(); if(l===0)continue;
+                const cor=d.multiplyScalar(1-c[2]/l).multiplyScalar(0.5);
+                c[0].position.add(cor); c[1].position.sub(cor);
+            }
+            for(let u=0;u<=cloth.w;u++){
+                const p=cloth.particles[u];
+                p.position.copy(p.original); p.position.x+=Math.sin(time/500+u)*0.5; p.previous.copy(p.position);
+            }
+            // Colision de todos los cuerpos con la tela
+            if (typeof bodies !== 'undefined') {
+                for (const b of bodies) {
+                    const bPos = b.mesh.position;
+                    const bR = b.r + 0.2;
+                    for(let i=0;i<cloth.particles.length;i++){
+                        const p=cloth.particles[i];
+                        const dd=new THREE.Vector3().subVectors(p.position, bPos);
+                        if(dd.length() < bR) p.position.copy(bPos).add(dd.normalize().multiplyScalar(bR));
+                    }
+                }
+            }
+            // Colision concha frita con tela (capsula vertical)
+            if(conchaModel) {
+                const cfPos = conchaModel.position;
+                const capsuleRadius = 0.8;
+                const capsuleBottom = cfPos.y;
+                const capsuleTop = cfPos.y + 2.0; // altura del modelo
+                for(let i=0;i<cloth.particles.length;i++){
+                    const p=cloth.particles[i];
+                    // Punto mas cercano en el eje vertical de la capsula
+                    const clampedY = Math.max(capsuleBottom, Math.min(capsuleTop, p.position.y));
+                    const dx = p.position.x - cfPos.x;
+                    const dy = p.position.y - clampedY;
+                    const dz = p.position.z - cfPos.z;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    if(dist < capsuleRadius && dist > 0.001) {
+                        const nx = dx/dist, ny = dy/dist, nz = dz/dist;
+                        p.position.x = cfPos.x + nx * capsuleRadius;
+                        p.position.y = clampedY + ny * capsuleRadius;
+                        p.position.z = cfPos.z + nz * capsuleRadius;
+                    }
+                }
+            }
+            for(let i=0;i<cloth.particles.length;i++) if(cloth.particles[i].position.y<-4.8) cloth.particles[i].position.y=-4.8;
+        }
+    }
+
+    // === CONCHA FRITA ANIMADA ===
+    let conchaModel = null, conchaAngle = 0, conchaFloorY = -5;
+    let conchaMixer = null;
+    const gltfLoader = new THREE.GLTFLoader();
+    gltfLoader.load('concha-frita-animated.glb', (gltf) => {
+        conchaModel = gltf.scene;
+        const bb = new THREE.Box3().setFromObject(conchaModel);
+        const s = 5 / (bb.getSize(new THREE.Vector3()).y || 1);
+        conchaModel.scale.setScalar(s);
+        conchaModel.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        const sb = new THREE.Box3().setFromObject(conchaModel);
+        conchaFloorY = -5 - sb.min.y;
+        conchaModel.position.set(0, conchaFloorY, 0);
+        scene.add(conchaModel);
+
+        if (gltf.animations && gltf.animations.length) {
+            conchaMixer = new THREE.AnimationMixer(conchaModel);
+            conchaMixer.clipAction(gltf.animations[0]).play();
+        }
+    });
+
+    // === CUERPOS CON FISICA ===
+    function makeBody(mesh, r, vx, vy, vz) {
+        mesh.castShadow = true;
+        scene.add(mesh);
+        return { mesh, r, vel: new THREE.Vector3(vx, vy, vz) };
+    }
+
+    const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(1.2, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0x2288ff, roughness: 0.1, metalness: 0.8 })
+    );
+    sphere.position.set(-4, 5, 2);
+
+    const sphereSmall = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0xffaa22, roughness: 0.1, metalness: 0.8 })
+    );
+    sphereSmall.position.set(-2, 10, 1);
+
+    const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 1.5, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0xff4422, roughness: 0.1, metalness: 0.8 })
+    );
+    cube.position.set(4, 5, -2);
+
+    const bodies = [
+        makeBody(sphere, 1.2, 3, 0, 2),
+        makeBody(sphereSmall, 0.5, 5, 3, -4),
+        makeBody(cube, 1.1, -1, 0, 1.5)
+    ];
+
+    const GRAVITY = -15;
+    const BOUNCE = 0.75;
+    const FLOOR_Y = -5;
+    const WALL = 12;
+
+    function bounceBodies(dt) {
+        for (const b of bodies) {
+            b.vel.y += GRAVITY * dt;
+            b.mesh.position.addScaledVector(b.vel, dt);
+
+            // Piso
+            if (b.mesh.position.y < FLOOR_Y + b.r) {
+                b.mesh.position.y = FLOOR_Y + b.r;
+                b.vel.y = Math.abs(b.vel.y) * BOUNCE;
+            }
+            // Techo
+            if (b.mesh.position.y > 15) { b.mesh.position.y = 15; b.vel.y *= -0.5; }
+            // Paredes
+            if (b.mesh.position.x > WALL - b.r) { b.mesh.position.x = WALL - b.r; b.vel.x *= -BOUNCE; }
+            if (b.mesh.position.x < -WALL + b.r) { b.mesh.position.x = -WALL + b.r; b.vel.x *= -BOUNCE; }
+            if (b.mesh.position.z > WALL - b.r) { b.mesh.position.z = WALL - b.r; b.vel.z *= -BOUNCE; }
+            if (b.mesh.position.z < -WALL + b.r) { b.mesh.position.z = -WALL + b.r; b.vel.z *= -BOUNCE; }
+
+            // Rotación visual (cubo más lento)
+            const rotSpeed = (b.mesh === cube) ? 0.3 : 1;
+            b.mesh.rotation.x += b.vel.x * dt * rotSpeed;
+            b.mesh.rotation.z += b.vel.z * dt * rotSpeed;
+
+            // Limitar velocidad del cubo
+            if (b.mesh === cube) {
+                const spd = b.vel.length();
+                if (spd > 6) b.vel.multiplyScalar(6 / spd);
+            }
+        }
+
+        // Colisiones entre cuerpos
+        for (let i = 0; i < bodies.length; i++) {
+            for (let j = i + 1; j < bodies.length; j++) {
+                const a = bodies[i], b = bodies[j];
+                const d = new THREE.Vector3().subVectors(b.mesh.position, a.mesh.position);
+                const dist = d.length();
+                const minDist = a.r + b.r;
+                if (dist < minDist && dist > 0.01) {
+                    const n = d.normalize();
+                    const overlap = minDist - dist;
+                    a.mesh.position.addScaledVector(n, -overlap * 0.5);
+                    b.mesh.position.addScaledVector(n, overlap * 0.5);
+                    const relVel = new THREE.Vector3().subVectors(a.vel, b.vel);
+                    const vn = relVel.dot(n);
+                    if (vn > 0) {
+                        a.vel.addScaledVector(n, -vn * 0.8);
+                        b.vel.addScaledVector(n, vn * 0.8);
+                    }
+                }
+            }
+        }
+
+        // Colisión con concha frita
+        if (conchaModel) {
+            const cfPos = conchaModel.position;
+            const cfR = 1.5;
+            for (const b of bodies) {
+                const dx = b.mesh.position.x - cfPos.x;
+                const dz = b.mesh.position.z - cfPos.z;
+                const dh = Math.sqrt(dx*dx + dz*dz);
+                const minD = b.r + cfR;
+                if (dh < minD && b.mesh.position.y < cfPos.y + 5 && dh > 0.01) {
+                    const nx = dx/dh, nz = dz/dh;
+                    b.mesh.position.x = cfPos.x + nx * minD;
+                    b.mesh.position.z = cfPos.z + nz * minD;
+                    const vDot = b.vel.x * nx + b.vel.z * nz;
+                    if (vDot < 0) {
+                        b.vel.x -= 1.5 * vDot * nx;
+                        b.vel.z -= 1.5 * vDot * nz;
+                        b.vel.y += 3;
+                    }
+                }
+            }
+        }
+
+        // Empujones aleatorios
+        for (const b of bodies) {
+            if (Math.random() < 0.02) {
+                b.vel.x += (Math.random() - 0.5) * 8;
+                b.vel.z += (Math.random() - 0.5) * 8;
+                b.vel.y += Math.random() * 6;
+            }
+        }
+    }
+
+    // (partículas removidas)
+
+    // === MOUSE DRAG PARA ROTAR CAMARA ===
+    let isDragging = false, prevX = 0, prevY = 0;
+    let userAngleX = 0, userAngleY = 0;
+    document.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+    document.addEventListener('mouseup', () => isDragging = false);
+    document.addEventListener('mousemove', e => {
+        if (isDragging) {
+            userAngleX += (e.clientX - prevX) * 0.005;
+            userAngleY += (e.clientY - prevY) * 0.003;
+            userAngleY = Math.max(-0.5, Math.min(0.8, userAngleY));
+            prevX = e.clientX;
+            prevY = e.clientY;
+        }
+    });
+
+    // === ANIMACION ===
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const time = Date.now() * 0.001;
+        const dt = clock.getDelta();
+
+        // Camara fija de frente a la tela
+        const radius = 16;
+        const camY = 3 + userAngleY * 10;
+        camera.position.set(userAngleX * 5, camY, radius);
+        camera.lookAt(0, 0, 0);
+
+        // Concha Frita camina en el lugar
+        if (conchaModel) {
+            conchaModel.position.x = 0;
+            conchaModel.position.z = 0;
+            conchaModel.position.y = conchaFloorY;
+            conchaModel.rotation.y = 0; // mirando a cámara
+            if (conchaMixer) conchaMixer.update(dt);
+        }
+
+        // Física de esfera y cubo
+        bounceBodies(dt);
+
+        // Simular tela
+        simulateCloth(Date.now());
+        const verts = clothGeo.attributes.position.array;
+        for (let i = 0; i < cloth.particles.length; i++) {
+            verts[i * 3]     = cloth.particles[i].position.x;
+            verts[i * 3 + 1] = cloth.particles[i].position.y;
+            verts[i * 3 + 2] = cloth.particles[i].position.z;
+        }
+        clothGeo.attributes.position.needsUpdate = true;
+        clothGeo.computeVertexNormals();
+
+
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // === SECUENCIA DE PLACAS DE TEXTO ===
+    const show = id => document.getElementById(id).classList.add('visible');
+    const hide = id => document.getElementById(id).classList.remove('visible');
+
+    function runPlacas() {
+        let t = 0;
+        // "Hoy no hagas nada"
+        setTimeout(() => show('p1'), t += 1000);
+        // +1s "Nada productivo."
+        setTimeout(() => show('p2'), t += 1000);
+        // 3s juntas, se van
+        setTimeout(() => { hide('p1'); hide('p2'); }, t += 3000);
+        // "La gente que te amarga,"
+        setTimeout(() => show('p3'), t += 800);
+        // +1s "Mandalos a la mierda"
+        setTimeout(() => show('p4'), t += 1000);
+        // 3s juntas, se van
+        setTimeout(() => { hide('p3'); hide('p4'); }, t += 3000);
+        // "Nada importa."
+        setTimeout(() => show('p5'), t += 800);
+        // 3s, se va
+        setTimeout(() => hide('p5'), t += 3000);
+        // "¿Qué te importa?"
+        setTimeout(() => show('p6'), t += 800);
+        // 3s, se va
+        setTimeout(() => hide('p6'), t += 3000);
+        // "¿Qué es lo que a vos te importa?" + botón Responder
+        setTimeout(() => { show('p7'); document.getElementById('responder-wrap').classList.add('visible'); }, t += 800);
+    }
+    runPlacas();
+
+    // === OVERLAY RESPUESTA ===
+    document.getElementById('btn-responder').addEventListener('click', () => {
+        document.getElementById('respuesta-overlay').classList.add('active');
+        document.getElementById('respuesta-overlay').querySelector('textarea').focus();
+    });
+    document.getElementById('btn-cerrar').addEventListener('click', () => {
+        document.getElementById('respuesta-overlay').classList.remove('active');
+    });
+    document.getElementById('btn-enviar').addEventListener('click', () => {
+        const txt = document.getElementById('respuesta-overlay').querySelector('textarea').value.trim();
+        if (txt) {
+            console.log('Respuesta:', txt);
+            document.getElementById('respuesta-overlay').classList.remove('active');
+            // Ocultar pregunta y botón
+            hide('p7');
+            document.getElementById('responder-wrap').classList.remove('visible');
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    });
+</script>
+</body>
+</html>
