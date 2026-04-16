@@ -68,10 +68,11 @@
             width: 100%;
             text-align: center;
             opacity: 0;
+            pointer-events: none;
             transition: opacity 0.6s ease;
             z-index: 10;
         }
-        #responder-wrap.visible { opacity: 1; }
+        #responder-wrap.visible { opacity: 1; pointer-events: auto; }
         #btn-responder {
             font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 18px;
@@ -896,7 +897,10 @@
     const show = id => document.getElementById(id).classList.add('visible');
     const hide = id => document.getElementById(id).classList.remove('visible');
 
+    let experienceStarted = false;
     function beginExperience() {
+        if (experienceStarted) return;
+        experienceStarted = true;
         const loader = document.getElementById('loader');
         if (loader) loader.classList.add('done');
         // Ensure AudioContext is running for plops
@@ -913,30 +917,30 @@
         runPlacas();
     }
 
+    const placaTimers = [];
+    function schedulePlaca(fn, delay) {
+        placaTimers.push(setTimeout(fn, delay));
+    }
+    function cancelPlacaTimers() {
+        while (placaTimers.length) clearTimeout(placaTimers.pop());
+    }
+    function hideAllPlacas() {
+        ['p1','p2','p3','p4','p5','p6','p7'].forEach(id => hide(id));
+    }
+
     function runPlacas() {
         let t = 0;
-        // "Hoy no hagas nada"
-        setTimeout(() => show('p1'), t += 1000);
-        // +1s "Nada productivo."
-        setTimeout(() => show('p2'), t += 1000);
-        // 3s juntas, se van
-        setTimeout(() => { hide('p1'); hide('p2'); }, t += 3000);
-        // "La gente que te amarga,"
-        setTimeout(() => show('p3'), t += 800);
-        // +1s "Mandalos a la mierda"
-        setTimeout(() => show('p4'), t += 1000);
-        // 3s juntas, se van
-        setTimeout(() => { hide('p3'); hide('p4'); }, t += 3000);
-        // "Nada importa."
-        setTimeout(() => show('p5'), t += 800);
-        // 3s, se va
-        setTimeout(() => hide('p5'), t += 3000);
-        // "¿Qué te importa?"
-        setTimeout(() => show('p6'), t += 800);
-        // 3s, se va
-        setTimeout(() => hide('p6'), t += 3000);
-        // "¿Qué es lo que a vos te importa?" + botón Responder
-        setTimeout(() => { show('p7'); document.getElementById('responder-wrap').classList.add('visible'); }, t += 800);
+        schedulePlaca(() => show('p1'), t += 1000);
+        schedulePlaca(() => show('p2'), t += 1000);
+        schedulePlaca(() => { hide('p1'); hide('p2'); }, t += 3000);
+        schedulePlaca(() => show('p3'), t += 800);
+        schedulePlaca(() => show('p4'), t += 1000);
+        schedulePlaca(() => { hide('p3'); hide('p4'); }, t += 3000);
+        schedulePlaca(() => show('p5'), t += 800);
+        schedulePlaca(() => hide('p5'), t += 3000);
+        schedulePlaca(() => show('p6'), t += 800);
+        schedulePlaca(() => hide('p6'), t += 3000);
+        schedulePlaca(() => { show('p7'); document.getElementById('responder-wrap').classList.add('visible'); }, t += 800);
     }
 
     // Arrancar la experiencia cuando el usuario clickea "entrar"
@@ -956,7 +960,9 @@
         if (!txt) return;
         document.getElementById('respuesta-overlay').classList.remove('active');
         textarea.value = '';
-        hide('p7');
+        // Cancelar cualquier placa que estaba por aparecer y esconder las que haya
+        cancelPlacaTimers();
+        hideAllPlacas();
         document.getElementById('responder-wrap').classList.remove('visible');
 
         // Cutoff: no queremos que el fetch devuelva la entrada que acabamos de insertar
