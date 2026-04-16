@@ -105,9 +105,64 @@
             transition: background 0.3s;
         }
         #respuesta-overlay button:hover { background: rgba(255,255,255,0.15); }
+
+        #loader {
+            position: fixed; inset: 0;
+            background: #0b0213;
+            z-index: 1000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: #fff; font-family: 'Comic Sans MS', cursive;
+            transition: opacity 0.8s ease;
+        }
+        #loader.done { opacity: 0; pointer-events: none; }
+        #loader-msg {
+            font-size: 18px; letter-spacing: 3px;
+            text-transform: uppercase; opacity: 0.7;
+        }
+        #loader-bar {
+            margin-top: 20px;
+            width: 200px; height: 3px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px; overflow: hidden;
+        }
+        #loader-bar > div {
+            height: 100%; width: 0%;
+            background: #fff; transition: width 0.4s ease;
+        }
+        #btn-entrar {
+            margin-top: 30px;
+            font-family: 'Comic Sans MS', cursive;
+            font-size: 20px;
+            padding: 14px 44px;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 50px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: background 0.3s, border-color 0.3s, transform 0.3s;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #btn-entrar.ready {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #btn-entrar:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: #fff;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
+<div id="loader">
+    <div id="loader-msg">cargando...</div>
+    <div id="loader-bar"><div></div></div>
+    <button id="btn-entrar">entrar</button>
+</div>
 <div class="hud">Arrastra para rotar</div>
 <div id="p1" class="placa">Hoy no hagas nada</div>
 <div id="p2" class="placa">Nada productivo.</div>
@@ -128,6 +183,23 @@
 </div>
 
 <script>
+    // === PRELOADER (música + gltf + textura) ===
+    const LOAD_TARGETS = ['music', 'gltf', 'texture'];
+    const loaded = new Set();
+    const loaderMsg = document.getElementById('loader-msg');
+    const loaderBar = document.querySelector('#loader-bar > div');
+    const btnEntrar = document.getElementById('btn-entrar');
+    function markLoaded(key) {
+        if (loaded.has(key)) return;
+        loaded.add(key);
+        const pct = (loaded.size / LOAD_TARGETS.length) * 100;
+        if (loaderBar) loaderBar.style.width = pct + '%';
+        if (loaded.size === LOAD_TARGETS.length) {
+            if (loaderMsg) loaderMsg.textContent = 'listo';
+            if (btnEntrar) btnEntrar.classList.add('ready');
+        }
+    }
+
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2('#0b0213', 0.012);
 
@@ -182,7 +254,10 @@
     const clothSegs = 30, clothSize = 16;
     const cloth = new Cloth(clothSegs, clothSegs, clothSize);
     const clothGeo = new THREE.ParametricGeometry((u,v,t)=>t.setScalar(0), clothSegs, clothSegs);
-    const clothTex = new THREE.TextureLoader().load('https://images.unsplash.com/photo-1541701494587-cb58502866ab?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&h=800&q=80');
+    const clothTex = new THREE.TextureLoader().load(
+        'https://images.unsplash.com/photo-1541701494587-cb58502866ab?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&h=800&q=80',
+        () => markLoaded('texture')
+    );
     clothTex.anisotropy = 16;
     const clothMesh = new THREE.Mesh(clothGeo, new THREE.MeshStandardMaterial({ map: clothTex, roughness: 0.5, metalness: 0.1, side: THREE.DoubleSide }));
     clothMesh.castShadow = true; clothMesh.receiveShadow = true;
@@ -268,7 +343,8 @@
             conchaMixer = new THREE.AnimationMixer(conchaModel);
             conchaMixer.clipAction(gltf.animations[0]).play();
         }
-    });
+        markLoaded('gltf');
+    }, undefined, () => markLoaded('gltf')); // si falla, seguimos igual
 
     // === CUERPOS CON FISICA ===
     function makeBody(mesh, r, vx, vy, vz) {
@@ -413,20 +489,15 @@
     // === MUSICA DE FONDO + SONIDO DE ATERRIZAJE ===
     let soundOn = true;
 
-    // Musica de fondo (bossa.mp3 en loop)
+    // Musica de fondo (bossa.mp3 en loop) - se precarga, se reproduce al "entrar"
     const bgMusic = new Audio('bossa.mp3');
     bgMusic.loop = true;
     bgMusic.volume = 0.5;
-
-    function tryStartMusic() {
-        if (!soundOn) return;
-        const p = bgMusic.play();
-        if (p && p.catch) p.catch(() => { /* autoplay bloqueado, arranca en primer click */ });
-    }
-    tryStartMusic();
-    // En caso de que autoplay este bloqueado, arrancar en la primera interaccion
-    const startOnce = () => { tryStartMusic(); document.removeEventListener('pointerdown', startOnce); };
-    document.addEventListener('pointerdown', startOnce);
+    bgMusic.preload = 'auto';
+    bgMusic.addEventListener('canplaythrough', () => markLoaded('music'), { once: true });
+    bgMusic.addEventListener('error', () => markLoaded('music'), { once: true });
+    // Fallback: si el navegador no dispara canplaythrough, destrabamos a los 8s
+    setTimeout(() => markLoaded('music'), 8000);
 
     // Sonido procedural de aterrizaje via Web Audio
     let audioCtx = null;
@@ -707,6 +778,20 @@
     const show = id => document.getElementById(id).classList.add('visible');
     const hide = id => document.getElementById(id).classList.remove('visible');
 
+    function beginExperience() {
+        const loader = document.getElementById('loader');
+        if (loader) loader.classList.add('done');
+        // Ensure AudioContext is running for plops
+        const c = ensureAudio();
+        if (c && c.state !== 'running') c.resume();
+        // Play music (ya precargada)
+        if (soundOn) {
+            const p = bgMusic.play();
+            if (p && p.catch) p.catch(() => {});
+        }
+        runPlacas();
+    }
+
     function runPlacas() {
         let t = 0;
         // "Hoy no hagas nada"
@@ -732,7 +817,9 @@
         // "¿Qué es lo que a vos te importa?" + botón Responder
         setTimeout(() => { show('p7'); document.getElementById('responder-wrap').classList.add('visible'); }, t += 800);
     }
-    runPlacas();
+
+    // Arrancar la experiencia cuando el usuario clickea "entrar"
+    btnEntrar.addEventListener('click', beginExperience);
 
     // === OVERLAY RESPUESTA ===
     document.getElementById('btn-responder').addEventListener('click', () => {
