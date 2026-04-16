@@ -5,6 +5,7 @@
     <title>Tres De</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; }
         body { background: #0b0213; overflow: hidden; }
@@ -119,7 +120,7 @@
     <button id="btn-responder">Responder</button>
 </div>
 <div id="respuesta-overlay">
-    <textarea placeholder="Escribí lo que te importa..."></textarea>
+    <textarea placeholder="Escribí lo que te importa..." maxlength="200"></textarea>
     <div class="overlay-btns">
         <button id="btn-enviar">Enviar</button>
         <button id="btn-cerrar">Cerrar</button>
@@ -390,7 +391,257 @@
         }
     }
 
-    // (partículas removidas)
+    // === IMPORTANCIAS (cosas que importan cayendo del cielo) ===
+    const SUPABASE_URL = 'https://rhpozdfhnmaefvdiofrx.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_TOb3I1gHrdPx-sVvJjJrmQ_Oe3YcgS9';
+    const SUPABASE_ON  = !SUPABASE_URL.startsWith('TU_') && !SUPABASE_KEY.startsWith('TU_');
+    const db = SUPABASE_ON ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+    // Seeds para ver la simulación sin Supabase
+    const SEED_IMPORTANCIAS = [
+        'mi mamá', 'dormir siesta', 'el mate', 'los chicitos', 'caminar descalza',
+        'que me abracen', 'el olor a lluvia', 'reírme fuerte', 'la concha frita',
+        'ver el mar', 'que me escuchen', 'cantar en el auto', 'el pan casero',
+        'silencio', 'bailar sola', 'mi gato', 'el domingo a la tarde', 'decir la verdad'
+    ];
+
+    const importancias = []; // { mesh, vy, vx, vz, vrotX, vrotY, vrotZ, width, height, resting, restPhase }
+    const PILE_GRID = new Map(); // clave "gx,gz" -> cantidad apilada
+    const PILE_CELL = 2.2;       // tamaño de celda de la grilla de apilado
+    const PILE_THICKNESS = 0.12; // alto visual por capa
+
+    // === MUSICA DE FONDO + SONIDO DE ATERRIZAJE ===
+    let soundOn = true;
+
+    // Musica de fondo (bossa.mp3 en loop)
+    const bgMusic = new Audio('bossa.mp3');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.5;
+
+    function tryStartMusic() {
+        if (!soundOn) return;
+        const p = bgMusic.play();
+        if (p && p.catch) p.catch(() => { /* autoplay bloqueado, arranca en primer click */ });
+    }
+    tryStartMusic();
+    // En caso de que autoplay este bloqueado, arrancar en la primera interaccion
+    const startOnce = () => { tryStartMusic(); document.removeEventListener('pointerdown', startOnce); };
+    document.addEventListener('pointerdown', startOnce);
+
+    // Sonido procedural de aterrizaje via Web Audio
+    let audioCtx = null;
+    function ensureAudio() {
+        if (audioCtx) return audioCtx;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audioCtx = new AC();
+        return audioCtx;
+    }
+    document.addEventListener('pointerdown', () => {
+        const c = ensureAudio();
+        if (c && c.state !== 'running') c.resume();
+    });
+
+    function playLandSound(highlight = false) {
+        if (!soundOn) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        if (ctx.state !== 'running') ctx.resume();
+        const now = ctx.currentTime;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        const baseFreq = highlight ? 520 : 260;
+        const freq = baseFreq + (Math.random() - 0.5) * 80;
+        osc.frequency.setValueAtTime(freq * 1.6, now);
+        osc.frequency.exponentialRampToValueAtTime(freq, now + 0.08);
+
+        const peak = highlight ? 0.55 : 0.3;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(peak, now + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + (highlight ? 0.4 : 0.22));
+
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+
+        const buf = ctx.createBuffer(1, 512, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        const ng = ctx.createGain();
+        ng.gain.value = highlight ? 0.18 : 0.09;
+        noise.connect(ng).connect(ctx.destination);
+        noise.start(now);
+    }
+
+    // Boton apagar / prender sonido
+    const soundBtn = document.createElement('button');
+    soundBtn.textContent = 'apagar sonido';
+    soundBtn.style.cssText = 'position:fixed;top:20px;left:20px;z-index:1000;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:rgba(0,0,0,0.35);color:#fff;font-family:"Comic Sans MS",cursive;font-size:13px;letter-spacing:1px;cursor:pointer;';
+    soundBtn.addEventListener('click', () => {
+        soundOn = !soundOn;
+        if (soundOn) {
+            bgMusic.play().catch(() => {});
+            soundBtn.textContent = 'apagar sonido';
+        } else {
+            bgMusic.pause();
+            soundBtn.textContent = 'prender sonido';
+        }
+    });
+    document.body.appendChild(soundBtn);
+
+    function makeImportanciaMesh(text) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const fontSize = 56;
+        const font = `bold ${fontSize}px "Comic Sans MS", cursive`;
+        ctx.font = font;
+        const metrics = ctx.measureText(text);
+        const pad = 24;
+        canvas.width  = Math.ceil(metrics.width + pad * 2);
+        canvas.height = fontSize + pad * 2;
+
+        ctx.font = font;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        // Sombra suave
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillText(text, pad + 2, canvas.height / 2 + 2);
+        // Color
+        const tints = ['#ffffff', '#ffd4e5', '#ffb3d1', '#c2e7ff', '#ffe08a'];
+        ctx.fillStyle = tints[Math.floor(Math.random() * tints.length)];
+        ctx.fillText(text, pad, canvas.height / 2);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.anisotropy = 8;
+        const mat = new THREE.MeshBasicMaterial({
+            map: tex, transparent: true, side: THREE.DoubleSide, alphaTest: 0.01
+        });
+        const aspect = canvas.width / canvas.height;
+        const h = 1.1;
+        const w = h * aspect;
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+        mesh.castShadow = false; // evita sombra rectangular bajo el texto
+        return { mesh, width: w, height: h };
+    }
+
+    function dropImportancia(text, opts = {}) {
+        if (!text || !text.trim()) return;
+        const { mesh, width, height } = makeImportanciaMesh(text.trim());
+        const x0 = (Math.random() - 0.5) * 18;
+        const z0 = (Math.random() - 0.5) * 10 + 1;
+        const y0 = 14 + Math.random() * 8;
+        mesh.position.set(x0, y0, z0);
+        mesh.rotation.set(
+            (Math.random() - 0.5) * 0.8,
+            (Math.random() - 0.5) * 0.8,
+            (Math.random() - 0.5) * 0.8
+        );
+        scene.add(mesh);
+        importancias.push({
+            mesh, width, height,
+            vy: -0.02, vx: (Math.random() - 0.5) * 1.6, vz: (Math.random() - 0.5) * 0.8,
+            vrotX: (Math.random() - 0.5) * 2.2,
+            vrotY: (Math.random() - 0.5) * 2.0,
+            vrotZ: (Math.random() - 0.5) * 2.2,
+            resting: false,
+            restPhase: 0,         // 0 cayendo, 1 acomodando, 2 quieto
+            targetY: 0, targetRotZ: 0,
+            highlight: !!opts.highlight,
+            highlightUntil: performance.now() + 1200,
+        });
+    }
+
+    async function persistImportancia(text) {
+        if (!SUPABASE_ON) return;
+        try {
+            const { error } = await db.from('importancias').insert({ texto: text });
+            if (error) console.warn('supabase insert:', error);
+        } catch (e) { console.warn(e); }
+    }
+
+    async function rainPastImportancias(beforeIso) {
+        let items = [];
+        if (SUPABASE_ON) {
+            try {
+                let q = db.from('importancias').select('texto').limit(200);
+                if (beforeIso) q = q.lt('created_at', beforeIso);
+                const { data, error } = await q;
+                if (!error && data) items = data.map(r => r.texto);
+            } catch (e) { console.warn(e); }
+        }
+        if (items.length === 0) items = SEED_IMPORTANCIAS.slice();
+        items.sort(() => Math.random() - 0.5);
+        items.forEach((t, i) => setTimeout(() => dropImportancia(t), i * 550 + Math.random() * 200));
+    }
+
+    function pileKey(x, z) {
+        const gx = Math.round(x / PILE_CELL);
+        const gz = Math.round(z / PILE_CELL);
+        return gx + ',' + gz;
+    }
+
+    function layFlat(imp) {
+        // Elegí la celda de apilado según donde cayó
+        const key = pileKey(imp.mesh.position.x, imp.mesh.position.z);
+        const stacked = PILE_GRID.get(key) || 0;
+        PILE_GRID.set(key, stacked + 1);
+        imp.targetY = FLOOR_Y + 0.01 + stacked * PILE_THICKNESS;
+        imp.targetRotZ = (Math.random() - 0.5) * Math.PI * 0.5; // orientacion random al acostarse
+        imp.restPhase = 1;
+        playLandSound(imp.highlight);
+    }
+
+    function updateImportancias(dt) {
+        const now = performance.now();
+        const G = -9.0;
+        for (const imp of importancias) {
+            if (imp.restPhase === 0) {
+                // Cayendo: gravedad + tumble 3D
+                imp.vy += G * dt;
+                imp.mesh.position.x += imp.vx * dt;
+                imp.mesh.position.y += imp.vy * dt;
+                imp.mesh.position.z += imp.vz * dt;
+                imp.mesh.rotation.x += imp.vrotX * dt;
+                imp.mesh.rotation.y += imp.vrotY * dt;
+                imp.mesh.rotation.z += imp.vrotZ * dt;
+
+                if (imp.mesh.position.y <= FLOOR_Y + 0.3) {
+                    imp.mesh.position.y = FLOOR_Y + 0.3;
+                    layFlat(imp);
+                }
+            } else if (imp.restPhase === 1) {
+                // Acomodandose: acuesta boca arriba y baja a la capa de pila
+                const k = 8 * dt;
+                imp.mesh.position.y += (imp.targetY - imp.mesh.position.y) * k;
+                imp.mesh.rotation.x += ((-Math.PI / 2) - imp.mesh.rotation.x) * k;
+                imp.mesh.rotation.y += (0 - imp.mesh.rotation.y) * k;
+                imp.mesh.rotation.z += (imp.targetRotZ - imp.mesh.rotation.z) * k;
+                // Frenado lateral suave hasta quietud
+                imp.mesh.position.x += imp.vx * dt;
+                imp.mesh.position.z += imp.vz * dt;
+                imp.vx *= 0.85; imp.vz *= 0.85;
+                if (Math.abs(imp.mesh.position.y - imp.targetY) < 0.01 &&
+                    Math.abs(imp.mesh.rotation.x + Math.PI / 2) < 0.02) {
+                    imp.mesh.position.y = imp.targetY;
+                    imp.mesh.rotation.x = -Math.PI / 2;
+                    imp.mesh.rotation.z = imp.targetRotZ;
+                    imp.restPhase = 2;
+                }
+            }
+
+            if (imp.highlight && now < imp.highlightUntil) {
+                const t = (imp.highlightUntil - now) / 1200;
+                imp.mesh.scale.setScalar(1 + t * 0.4);
+            } else if (imp.highlight) {
+                imp.mesh.scale.setScalar(1);
+                imp.highlight = false;
+            }
+        }
+    }
 
     // === MOUSE DRAG PARA ROTAR CAMARA ===
     let isDragging = false, prevX = 0, prevY = 0;
@@ -432,6 +683,9 @@
 
         // Física de esfera y cubo
         bounceBodies(dt);
+
+        // Importancias cayendo del cielo
+        updateImportancias(dt);
 
         // Simular tela
         simulateCloth(Date.now());
@@ -489,14 +743,23 @@
         document.getElementById('respuesta-overlay').classList.remove('active');
     });
     document.getElementById('btn-enviar').addEventListener('click', () => {
-        const txt = document.getElementById('respuesta-overlay').querySelector('textarea').value.trim();
-        if (txt) {
-            console.log('Respuesta:', txt);
-            document.getElementById('respuesta-overlay').classList.remove('active');
-            // Ocultar pregunta y botón
-            hide('p7');
-            document.getElementById('responder-wrap').classList.remove('visible');
-        }
+        const textarea = document.getElementById('respuesta-overlay').querySelector('textarea');
+        const txt = textarea.value.trim();
+        if (!txt) return;
+        document.getElementById('respuesta-overlay').classList.remove('active');
+        textarea.value = '';
+        hide('p7');
+        document.getElementById('responder-wrap').classList.remove('visible');
+
+        // Cutoff: no queremos que el fetch devuelva la entrada que acabamos de insertar
+        const cutoffIso = new Date().toISOString();
+
+        // La respuesta del usuario cae primero, destacada
+        dropImportancia(txt, { highlight: true });
+        persistImportancia(txt);
+
+        // Y después llueven las de los demás (solo las anteriores al cutoff)
+        setTimeout(() => rainPastImportancias(cutoffIso), 1200);
     });
 
     window.addEventListener('resize', () => {
