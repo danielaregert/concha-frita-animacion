@@ -183,6 +183,8 @@
             transition: opacity 0.8s ease;
         }
         #loader.done { opacity: 0; pointer-events: none; }
+        #loader.done * { pointer-events: none !important; }
+        #loader.hidden { display: none !important; }
         #loader-msg {
             font-size: 18px; letter-spacing: 3px;
             text-transform: uppercase; opacity: 0.7;
@@ -953,7 +955,13 @@
         if (experienceStarted) return;
         experienceStarted = true;
         const loader = document.getElementById('loader');
-        if (loader) loader.classList.add('done');
+        if (loader) {
+            loader.classList.add('done');
+            // Despues de la transicion, saco el loader del DOM de hit-testing
+            // (iOS Safari a veces sigue interceptando taps de hijos con pointer-events:auto
+            // aunque el padre tenga pointer-events:none)
+            setTimeout(() => loader.classList.add('hidden'), 900);
+        }
         // Ensure AudioContext is running for plops
         const c = ensureAudio();
         if (c && c.state !== 'running') c.resume();
