@@ -90,8 +90,8 @@
         #responder-wrap.visible { opacity: 1; pointer-events: auto; }
         #btn-responder {
             font-family: 'Comic Neue', 'Comic Sans MS', cursive;
-            font-size: 18px;
-            padding: 16px 44px;
+            font-size: 19px;
+            padding: 20px 52px;
             border: 1px solid rgba(255,255,255,0.5);
             border-radius: 50px;
             background: transparent;
@@ -101,7 +101,9 @@
             transition: background 0.3s, border-color 0.3s;
             touch-action: manipulation;
             -webkit-appearance: none;
-            min-height: 48px;
+            -webkit-user-select: none;
+            user-select: none;
+            min-height: 56px;
         }
         #btn-responder:active {
             background: rgba(255,255,255,0.15);
@@ -991,10 +993,20 @@
     btnEntrar.addEventListener('click', beginExperience);
 
     // === OVERLAY RESPUESTA ===
-    document.getElementById('btn-responder').addEventListener('click', () => {
-        document.getElementById('respuesta-overlay').classList.add('active');
-        document.getElementById('respuesta-overlay').querySelector('textarea').focus();
-    });
+    const btnResponder = document.getElementById('btn-responder');
+    function abrirRespuesta() {
+        const overlay = document.getElementById('respuesta-overlay');
+        if (overlay.classList.contains('active')) return;
+        overlay.classList.add('active');
+        overlay.querySelector('textarea').focus();
+    }
+    btnResponder.addEventListener('click', abrirRespuesta);
+    // Fallback iOS: algunos taps no disparan click confiable en Safari.
+    // touchend abre el overlay al instante y evitamos el click sintetizado duplicado.
+    btnResponder.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        abrirRespuesta();
+    }, { passive: false });
     document.getElementById('btn-cerrar').addEventListener('click', () => {
         document.getElementById('respuesta-overlay').classList.remove('active');
     });
