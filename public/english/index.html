@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0213">
+    <title>Do nothing today - Daniela Regert</title>
+    <!-- Basic meta -->
+    <meta name="description" content="Because nothing matters. What is it that matters? There it is, what matters so much to you.">
+    <!-- Open Graph (Facebook, WhatsApp, LinkedIn, etc.) -->
+    <meta property="og:title" content="Do nothing today.">
+    <meta property="og:description" content="Because nothing matters. What is it that matters? There it is, what matters so much to you.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://danielaregert.com.ar/english/">
+    <meta property="og:image" content="https://nohagasnada.danielaregert.com.ar/ser-piola.png">
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Do nothing today.">
+    <meta name="twitter:description" content="Because nothing matters. What is it that matters? There it is, what matters so much to you.">
+    <meta name="twitter:image" content="https://nohagasnada.danielaregert.com.ar/ser-piola.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="icon" type="image/x-icon" href="https://danielaregert.com.ar/img/dani-favicon.ico">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            background: #0b0213; overflow: hidden;
+            width: 100%;
+            height: 100vh;
+            height: 100svh; /* small viewport (URL bar visible), modern support */
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        canvas { display: block; touch-action: none; }
+        .hud {
+            position: absolute;
+            bottom: 20px; width: 100%; text-align: center;
+            color: #fff; font-family: 'Comic Neue', 'Comic Sans MS', cursive; opacity: 0.4;
+            pointer-events: none; text-transform: uppercase; letter-spacing: 3px;
+            font-size: 12px;
+        }
+        .placa {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            color: #fff;
+            opacity: 0;
+            line-height: 1;
+            transition: opacity 0.6s ease;
+        }
+        .placa.visible { opacity: 1; }
+        .placa { padding: 0 16px; }
+        /* Grouped placas: flow naturally, never overlap */
+        .placa-group {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            z-index: 10;
+        }
+        .placa-group > .placa {
+            position: static;
+            width: auto;
+        }
+        .placa-group .placa + .placa {
+            margin-top: 10px;
+        }
+        #g1 { top: 36%; }
+        #g2 { top: 36%; }
+        #g3 { top: 36%; }
+        #p1 { font-size: 44px; font-weight: bold; }
+        #p2 { font-size: 30px; font-weight: 300; letter-spacing: 2px; }
+        #p3 { font-size: 34px; }
+        #p4 { font-size: 38px; font-weight: bold; }
+        #p5 { top: 40%; font-size: 42px; font-weight: bold; }
+        #p6 { top: 36%; font-size: 30px; font-weight: 300; }
+        #p7 { top: 36%; font-size: 34px; }
+        #responder-wrap {
+            margin-top: 28px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
+            position: relative;
+            z-index: 100;
+            isolation: isolate;
+        }
+        #responder-wrap.visible { opacity: 1; pointer-events: auto !important; }
+        #btn-responder {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 18px;
+            padding: 16px 44px;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 50px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: background 0.3s, border-color 0.3s;
+            touch-action: manipulation;
+            -webkit-appearance: none;
+            -webkit-user-select: none;
+            user-select: none;
+            min-height: 48px;
+            position: relative;
+            z-index: 101;
+        }
+        #btn-responder:active {
+            background: rgba(255,255,255,0.15);
+            border-color: #fff;
+        }
+        @media (hover: hover) {
+            #btn-responder:hover {
+                background: rgba(255,255,255,0.1);
+                border-color: #fff;
+            }
+        }
+        #respuesta-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            align-items: center;
+            justify-content: flex-start; /* content on top, the keyboard does not cover it */
+            padding-top: 14vh;
+            flex-direction: column;
+        }
+        #respuesta-overlay.active { display: flex; }
+        #respuesta-overlay textarea {
+            width: 80%;
+            max-width: 500px;
+            height: 120px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 16px;
+            color: #fff;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 18px;
+            padding: 16px;
+            resize: none;
+            outline: none;
+        }
+        #respuesta-overlay textarea::placeholder { color: rgba(255,255,255,0.3); }
+        #respuesta-overlay .overlay-btns {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+        }
+        #respuesta-overlay button {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 16px;
+            padding: 10px 28px;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 50px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: background 0.3s;
+        }
+        #respuesta-overlay button {
+            touch-action: manipulation;
+            -webkit-appearance: none;
+        }
+        #respuesta-overlay button:active { background: rgba(255,255,255,0.2); }
+        @media (hover: hover) {
+            #respuesta-overlay button:hover { background: rgba(255,255,255,0.15); }
+        }
+
+        #loader {
+            position: fixed; inset: 0;
+            background: #0b0213;
+            z-index: 1000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: #fff; font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            transition: opacity 0.8s ease;
+        }
+        #loader.done { opacity: 0; pointer-events: none; }
+        #loader.done * { pointer-events: none !important; }
+        #loader.hidden { display: none !important; }
+        #loader-msg {
+            font-size: 18px; letter-spacing: 3px;
+            text-transform: uppercase; opacity: 0.7;
+        }
+        #loader-bar {
+            margin-top: 20px;
+            width: 200px; height: 3px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px; overflow: hidden;
+        }
+        #loader-bar > div {
+            height: 100%; width: 0%;
+            background: #fff; transition: width 0.4s ease;
+        }
+        #btn-entrar {
+            margin-top: 30px;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 20px;
+            padding: 14px 44px;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 50px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: background 0.3s, border-color 0.3s, transform 0.3s;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #btn-entrar.ready {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #btn-entrar { touch-action: manipulation; -webkit-appearance: none; }
+        #btn-entrar:active {
+            background: rgba(255,255,255,0.15);
+            transform: scale(0.98);
+        }
+        @media (hover: hover) {
+            #btn-entrar:hover {
+                background: rgba(255,255,255,0.1);
+                border-color: #fff;
+                transform: scale(1.05);
+            }
+        }
+        #credit {
+            position: fixed;
+            bottom: 12px;
+            right: 16px;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            z-index: 50;
+            transition: color 0.3s;
+        }
+        #credit:hover { color: rgba(255, 255, 255, 0.9); }
+
+        @media (max-width: 640px) {
+            #respuesta-overlay textarea {
+                width: 88%;
+                font-size: 16px; /* avoids iOS auto-zoom on focus */
+                height: 110px;
+                padding: 14px;
+            }
+            #respuesta-overlay .overlay-btns {
+                width: 88%;
+                justify-content: center;
+            }
+            #respuesta-overlay button {
+                font-size: 15px;
+                padding: 12px 26px;
+                min-height: 44px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="loader">
+    <div id="loader-msg">loading...</div>
+    <div id="loader-bar"><div></div></div>
+    <button id="btn-entrar">enter</button>
+</div>
+<div class="hud">Drag to rotate</div>
+<div id="g1" class="placa-group">
+    <div id="p1" class="placa">Do nothing today</div>
+    <div id="p2" class="placa">Nothing productive.</div>
+</div>
+<div id="g2" class="placa-group">
+    <div id="p3" class="placa">The people who bring you down,</div>
+    <div id="p4" class="placa">Tell them to fuck off</div>
+</div>
+<div id="p5" class="placa">Nothing matters.</div>
+<div id="p6" class="placa">What do you care about?</div>
+<div id="g3" class="placa-group">
+    <div id="p7" class="placa">What is it that matters to you?</div>
+    <div id="responder-wrap">
+        <button id="btn-responder">Reply</button>
+    </div>
+</div>
+<div id="respuesta-overlay">
+    <textarea placeholder="Write what matters to you..." maxlength="200"></textarea>
+    <div class="overlay-btns">
+        <button id="btn-enviar">Send</button>
+        <button id="btn-cerrar">Close</button>
+    </div>
+</div>
+
+<script>
+    // === PRELOADER (music + gltf + texture + font) ===
+    const LOAD_TARGETS = ['music', 'gltf', 'texture', 'font'];
+    const loaded = new Set();
+    const loaderMsg = document.getElementById('loader-msg');
+    const loaderBar = document.querySelector('#loader-bar > div');
+    const btnEntrar = document.getElementById('btn-entrar');
+    function markLoaded(key) {
+        if (loaded.has(key)) return;
+        loaded.add(key);
+        const pct = (loaded.size / LOAD_TARGETS.length) * 100;
+        if (loaderBar) loaderBar.style.width = pct + '%';
+        if (loaded.size === LOAD_TARGETS.length) {
+            if (loaderMsg) loaderMsg.textContent = 'ready';
+            if (btnEntrar) btnEntrar.classList.add('ready');
+        }
+    }
+
+    // Load Comic Neue before "enter" becomes available
+    if (document.fonts && document.fonts.load) {
+        Promise.all([
+            document.fonts.load("400 16px 'Comic Neue'"),
+            document.fonts.load("700 56px 'Comic Neue'")
+        ]).then(() => markLoaded('font'))
+          .catch(() => markLoaded('font'));
+        setTimeout(() => markLoaded('font'), 5000);
+    } else {
+        markLoaded('font');
+    }
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2('#0b0213', 0.012);
+
+    const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // === LIGHTS ===
+    const ambient = new THREE.AmbientLight(0x222222);
+    scene.add(ambient);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(30, 50, 30);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    scene.add(dirLight);
+
+    const accentLight = new THREE.PointLight(0x2596be, 1.5, 60);
+    accentLight.position.set(-8, 6, 10);
+    scene.add(accentLight);
+
+    // === FLOOR ===
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -5;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // === PHYSICAL CLOTH (Verlet) ===
+    const MASS = 0.5, TIMESTEP = 18/1000, TIMESTEP_SQ = TIMESTEP*TIMESTEP, DRAG = 0.96;
+    class Particle { constructor(x,y,z){ this.position=new THREE.Vector3(x,y,z); this.previous=new THREE.Vector3(x,y,z); this.original=new THREE.Vector3(x,y,z); this.mass=MASS; }}
+    class Cloth {
+        constructor(w,h,size){
+            this.w=w; this.h=h; this.particles=[]; this.constraints=[];
+            const sx=size/w, sy=size/h;
+            for(let v=0;v<=h;v++) for(let u=0;u<=w;u++) this.particles.push(new Particle((u/w-0.5)*size, 8, (v/h-0.5)*size));
+            const idx=(u,v)=>u+v*(w+1);
+            for(let v=0;v<=h;v++) for(let u=0;u<=w;u++){
+                if(u<w) this.constraints.push([this.particles[idx(u,v)],this.particles[idx(u+1,v)],sx]);
+                if(v<h) this.constraints.push([this.particles[idx(u,v)],this.particles[idx(u,v+1)],sy]);
+            }
+        }
+    }
+    const clothSegs = 30, clothSize = 16;
+    const cloth = new Cloth(clothSegs, clothSegs, clothSize);
+    const clothGeo = new THREE.ParametricGeometry((u,v,t)=>t.setScalar(0), clothSegs, clothSegs);
+    const clothTex = new THREE.TextureLoader().load(
+        'https://images.unsplash.com/photo-1541701494587-cb58502866ab?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&h=800&q=80',
+        () => markLoaded('texture'),
+        undefined,
+        () => markLoaded('texture')
+    );
+    setTimeout(() => markLoaded('texture'), 10000);
+    clothTex.anisotropy = 16;
+    const clothMesh = new THREE.Mesh(clothGeo, new THREE.MeshStandardMaterial({ map: clothTex, roughness: 0.5, metalness: 0.1, side: THREE.DoubleSide }));
+    clothMesh.castShadow = true; clothMesh.receiveShadow = true;
+    scene.add(clothMesh);
+
+    const clothGravity = new THREE.Vector3(0, -9.81 * 8, 0);
+    function simulateCloth(time) {
+        const ws = Math.cos(time/2000)*10+25;
+        const wf = new THREE.Vector3(Math.sin(time/2000), Math.cos(time/3000), Math.sin(time/1000)).normalize().multiplyScalar(ws);
+        for(let i=0;i<cloth.particles.length;i++){
+            const p=cloth.particles[i];
+            const f=new THREE.Vector3().copy(clothGravity).add(wf);
+            const v=new THREE.Vector3().subVectors(p.position,p.previous).multiplyScalar(DRAG);
+            p.previous.copy(p.position);
+            p.position.add(v).add(f.multiplyScalar(p.mass*TIMESTEP_SQ));
+        }
+        for(let it=0;it<8;it++){
+            for(let i=0;i<cloth.constraints.length;i++){
+                const c=cloth.constraints[i];
+                const d=new THREE.Vector3().subVectors(c[1].position,c[0].position);
+                const l=d.length(); if(l===0)continue;
+                const cor=d.multiplyScalar(1-c[2]/l).multiplyScalar(0.5);
+                c[0].position.add(cor); c[1].position.sub(cor);
+            }
+            for(let u=0;u<=cloth.w;u++){
+                const p=cloth.particles[u];
+                p.position.copy(p.original); p.position.x+=Math.sin(time/500+u)*0.5; p.previous.copy(p.position);
+            }
+            if (typeof bodies !== 'undefined') {
+                for (const b of bodies) {
+                    const bPos = b.mesh.position;
+                    const bR = b.r + 0.2;
+                    for(let i=0;i<cloth.particles.length;i++){
+                        const p=cloth.particles[i];
+                        const dd=new THREE.Vector3().subVectors(p.position, bPos);
+                        if(dd.length() < bR) p.position.copy(bPos).add(dd.normalize().multiplyScalar(bR));
+                    }
+                }
+            }
+            if(conchaModel) {
+                const cfPos = conchaModel.position;
+                const capsuleRadius = 0.8;
+                const capsuleBottom = cfPos.y;
+                const capsuleTop = cfPos.y + 2.0;
+                for(let i=0;i<cloth.particles.length;i++){
+                    const p=cloth.particles[i];
+                    const clampedY = Math.max(capsuleBottom, Math.min(capsuleTop, p.position.y));
+                    const dx = p.position.x - cfPos.x;
+                    const dy = p.position.y - clampedY;
+                    const dz = p.position.z - cfPos.z;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    if(dist < capsuleRadius && dist > 0.001) {
+                        const nx = dx/dist, ny = dy/dist, nz = dz/dist;
+                        p.position.x = cfPos.x + nx * capsuleRadius;
+                        p.position.y = clampedY + ny * capsuleRadius;
+                        p.position.z = cfPos.z + nz * capsuleRadius;
+                    }
+                }
+            }
+            for(let i=0;i<cloth.particles.length;i++) if(cloth.particles[i].position.y<-4.8) cloth.particles[i].position.y=-4.8;
+        }
+    }
+
+    // === ANIMATED CONCHA FRITA ===
+    let conchaModel = null, conchaAngle = 0, conchaFloorY = -5;
+    let conchaMixer = null;
+    const gltfLoader = new THREE.GLTFLoader();
+    gltfLoader.load('../concha-frita-animated.glb', (gltf) => {
+        conchaModel = gltf.scene;
+        const bb = new THREE.Box3().setFromObject(conchaModel);
+        const s = 5 / (bb.getSize(new THREE.Vector3()).y || 1);
+        conchaModel.scale.setScalar(s);
+        conchaModel.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        const sb = new THREE.Box3().setFromObject(conchaModel);
+        conchaFloorY = -5 - sb.min.y;
+        conchaModel.position.set(0, conchaFloorY, 0);
+        scene.add(conchaModel);
+
+        if (gltf.animations && gltf.animations.length) {
+            conchaMixer = new THREE.AnimationMixer(conchaModel);
+            conchaMixer.clipAction(gltf.animations[0]).play();
+        }
+        markLoaded('gltf');
+    }, undefined, () => markLoaded('gltf'));
+
+    // === BODIES WITH PHYSICS ===
+    function makeBody(mesh, r, vx, vy, vz) {
+        mesh.castShadow = true;
+        scene.add(mesh);
+        return { mesh, r, vel: new THREE.Vector3(vx, vy, vz) };
+    }
+
+    const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(1.2, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0x2288ff, roughness: 0.1, metalness: 0.8 })
+    );
+    sphere.position.set(-4, 5, 2);
+
+    const sphereSmall = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0xffaa22, roughness: 0.1, metalness: 0.8 })
+    );
+    sphereSmall.position.set(-2, 10, 1);
+
+    const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 1.5, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0xff4422, roughness: 0.1, metalness: 0.8 })
+    );
+    cube.position.set(4, 5, -2);
+
+    const bodies = [
+        makeBody(sphere, 1.2, 3, 0, 2),
+        makeBody(sphereSmall, 0.5, 5, 3, -4),
+        makeBody(cube, 1.1, -1, 0, 1.5)
+    ];
+
+    const GRAVITY = -15;
+    const BOUNCE = 0.75;
+    const FLOOR_Y = -5;
+    const WALL = 12;
+
+    function bounceBodies(dt) {
+        for (const b of bodies) {
+            b.vel.y += GRAVITY * dt;
+            b.mesh.position.addScaledVector(b.vel, dt);
+
+            if (b.mesh.position.y < FLOOR_Y + b.r) {
+                b.mesh.position.y = FLOOR_Y + b.r;
+                b.vel.y = Math.abs(b.vel.y) * BOUNCE;
+            }
+            if (b.mesh.position.y > 15) { b.mesh.position.y = 15; b.vel.y *= -0.5; }
+            if (b.mesh.position.x > WALL - b.r) { b.mesh.position.x = WALL - b.r; b.vel.x *= -BOUNCE; }
+            if (b.mesh.position.x < -WALL + b.r) { b.mesh.position.x = -WALL + b.r; b.vel.x *= -BOUNCE; }
+            if (b.mesh.position.z > WALL - b.r) { b.mesh.position.z = WALL - b.r; b.vel.z *= -BOUNCE; }
+            if (b.mesh.position.z < -WALL + b.r) { b.mesh.position.z = -WALL + b.r; b.vel.z *= -BOUNCE; }
+
+            const rotSpeed = (b.mesh === cube) ? 0.3 : 1;
+            b.mesh.rotation.x += b.vel.x * dt * rotSpeed;
+            b.mesh.rotation.z += b.vel.z * dt * rotSpeed;
+
+            if (b.mesh === cube) {
+                const spd = b.vel.length();
+                if (spd > 6) b.vel.multiplyScalar(6 / spd);
+            }
+        }
+
+        for (let i = 0; i < bodies.length; i++) {
+            for (let j = i + 1; j < bodies.length; j++) {
+                const a = bodies[i], b = bodies[j];
+                const d = new THREE.Vector3().subVectors(b.mesh.position, a.mesh.position);
+                const dist = d.length();
+                const minDist = a.r + b.r;
+                if (dist < minDist && dist > 0.01) {
+                    const n = d.normalize();
+                    const overlap = minDist - dist;
+                    a.mesh.position.addScaledVector(n, -overlap * 0.5);
+                    b.mesh.position.addScaledVector(n, overlap * 0.5);
+                    const relVel = new THREE.Vector3().subVectors(a.vel, b.vel);
+                    const vn = relVel.dot(n);
+                    if (vn > 0) {
+                        a.vel.addScaledVector(n, -vn * 0.8);
+                        b.vel.addScaledVector(n, vn * 0.8);
+                    }
+                }
+            }
+        }
+
+        if (conchaModel) {
+            const cfPos = conchaModel.position;
+            const cfR = 1.5;
+            for (const b of bodies) {
+                const dx = b.mesh.position.x - cfPos.x;
+                const dz = b.mesh.position.z - cfPos.z;
+                const dh = Math.sqrt(dx*dx + dz*dz);
+                const minD = b.r + cfR;
+                if (dh < minD && b.mesh.position.y < cfPos.y + 5 && dh > 0.01) {
+                    const nx = dx/dh, nz = dz/dh;
+                    b.mesh.position.x = cfPos.x + nx * minD;
+                    b.mesh.position.z = cfPos.z + nz * minD;
+                    const vDot = b.vel.x * nx + b.vel.z * nz;
+                    if (vDot < 0) {
+                        b.vel.x -= 1.5 * vDot * nx;
+                        b.vel.z -= 1.5 * vDot * nz;
+                        b.vel.y += 3;
+                    }
+                }
+            }
+        }
+
+        for (const b of bodies) {
+            if (Math.random() < 0.02) {
+                b.vel.x += (Math.random() - 0.5) * 8;
+                b.vel.z += (Math.random() - 0.5) * 8;
+                b.vel.y += Math.random() * 6;
+            }
+        }
+    }
+
+    // === IMPORTANCIAS (things that matter falling from the sky) ===
+    const SUPABASE_URL = 'https://rhpozdfhnmaefvdiofrx.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_TOb3I1gHrdPx-sVvJjJrmQ_Oe3YcgS9';
+    const SUPABASE_ON  = !SUPABASE_URL.startsWith('TU_') && !SUPABASE_KEY.startsWith('TU_');
+    const db = SUPABASE_ON ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    const LANG = 'en';
+
+    // Seeds to view the simulation without Supabase
+    const SEED_IMPORTANCIAS = [
+        'my mom', 'taking a nap', 'mate', 'the little ones', 'walking barefoot',
+        'being hugged', 'the smell of rain', 'laughing out loud', 'concha frita',
+        'seeing the sea', 'being heard', 'singing in the car', 'homemade bread',
+        'silence', 'dancing alone', 'my cat', 'sunday afternoon', 'telling the truth'
+    ];
+
+    const importancias = [];
+    const PILE_GRID = new Map();
+    const PILE_CELL = 2.2;
+    const PILE_THICKNESS = 0.12;
+
+    // === BACKGROUND MUSIC + LANDING SOUND ===
+    let soundOn = true;
+
+    const bgMusic = new Audio('../bossa.mp3');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.5;
+    bgMusic.preload = 'auto';
+    bgMusic.addEventListener('canplaythrough', () => markLoaded('music'), { once: true });
+    bgMusic.addEventListener('error', () => markLoaded('music'), { once: true });
+    setTimeout(() => markLoaded('music'), 8000);
+
+    let audioCtx = null;
+    function ensureAudio() {
+        if (audioCtx) return audioCtx;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audioCtx = new AC();
+        return audioCtx;
+    }
+    document.addEventListener('pointerdown', () => {
+        const c = ensureAudio();
+        if (c && c.state !== 'running') c.resume();
+    });
+
+    function playLandSound(highlight = false) {
+        if (!soundOn) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        if (ctx.state !== 'running') ctx.resume();
+        const now = ctx.currentTime;
+
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        const basePitch = highlight ? 1100 : 750;
+        const startFreq = basePitch + (Math.random() - 0.5) * basePitch * 0.3;
+        osc.frequency.setValueAtTime(startFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(startFreq * 0.4, now + 0.05);
+
+        const gain = ctx.createGain();
+        const peak = highlight ? 0.45 : 0.22;
+        const decay = highlight ? 0.13 : 0.09;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(peak, now + 0.003);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+
+        const buf = ctx.createBuffer(1, 256, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            const t = i / data.length;
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2);
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 1800 + Math.random() * 800;
+        bp.Q.value = 5;
+
+        const ng = ctx.createGain();
+        ng.gain.value = highlight ? 0.12 : 0.06;
+        noise.connect(bp).connect(ng).connect(ctx.destination);
+        noise.start(now);
+    }
+
+    const soundBtn = document.createElement('button');
+    soundBtn.textContent = 'sound off';
+    soundBtn.style.cssText = "position:fixed;top:20px;left:20px;z-index:1000;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:rgba(0,0,0,0.35);color:#fff;font-family:'Comic Neue','Comic Sans MS',cursive;font-size:13px;letter-spacing:1px;cursor:pointer;";
+    soundBtn.addEventListener('click', () => {
+        soundOn = !soundOn;
+        if (soundOn) {
+            bgMusic.play().catch(() => {});
+            soundBtn.textContent = 'sound off';
+        } else {
+            bgMusic.pause();
+            soundBtn.textContent = 'sound on';
+        }
+    });
+    document.body.appendChild(soundBtn);
+
+    function makeImportanciaMesh(text) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const fontSize = 56;
+        const font = `bold ${fontSize}px 'Comic Neue', 'Comic Sans MS', cursive`;
+        ctx.font = font;
+        const metrics = ctx.measureText(text);
+        const padX = 28;
+        const padY = 70;
+        canvas.width  = Math.ceil(metrics.width + padX * 2);
+        canvas.height = fontSize + padY * 2;
+
+        ctx.font = font;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillText(text, padX + 2, canvas.height / 2 + 2);
+        const tints = ['#ffffff', '#ffd4e5', '#ffb3d1', '#c2e7ff', '#ffe08a'];
+        ctx.fillStyle = tints[Math.floor(Math.random() * tints.length)];
+        ctx.fillText(text, padX, canvas.height / 2);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.anisotropy = 8;
+        const mat = new THREE.MeshBasicMaterial({
+            map: tex, transparent: true, side: THREE.DoubleSide, alphaTest: 0.01
+        });
+        const TEXT_WORLD_HEIGHT = 0.55;
+        const scale = TEXT_WORLD_HEIGHT / fontSize;
+        const h = canvas.height * scale;
+        const w = canvas.width  * scale;
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+        mesh.castShadow = false;
+        return { mesh, width: w, height: h };
+    }
+
+    function dropImportancia(text, opts = {}) {
+        if (!text || !text.trim()) return;
+        const { mesh, width, height } = makeImportanciaMesh(text.trim());
+        const x0 = (Math.random() - 0.5) * 18;
+        const z0 = (Math.random() - 0.5) * 10 + 1;
+        const y0 = 14 + Math.random() * 8;
+        mesh.position.set(x0, y0, z0);
+        mesh.rotation.set(
+            (Math.random() - 0.5) * 0.8,
+            (Math.random() - 0.5) * 0.8,
+            (Math.random() - 0.5) * 0.8
+        );
+        scene.add(mesh);
+        importancias.push({
+            mesh, width, height,
+            vy: -0.02, vx: (Math.random() - 0.5) * 1.6, vz: (Math.random() - 0.5) * 0.8,
+            vrotX: (Math.random() - 0.5) * 2.2,
+            vrotY: (Math.random() - 0.5) * 2.0,
+            vrotZ: (Math.random() - 0.5) * 2.2,
+            resting: false,
+            restPhase: 0,
+            targetY: 0, targetRotZ: 0,
+            highlight: !!opts.highlight,
+            highlightUntil: performance.now() + 1200,
+        });
+    }
+
+    async function persistImportancia(text) {
+        if (!SUPABASE_ON) return;
+        try {
+            const { error } = await db.from('importancias').insert({ texto: text, lang: LANG });
+            if (error) console.warn('supabase insert:', error);
+        } catch (e) { console.warn(e); }
+    }
+
+    async function rainPastImportancias(beforeIso) {
+        let items = [];
+        if (SUPABASE_ON) {
+            try {
+                let q = db.from('importancias').select('texto').eq('lang', LANG).limit(200);
+                if (beforeIso) q = q.lt('created_at', beforeIso);
+                const { data, error } = await q;
+                if (!error && data) items = data.map(r => r.texto);
+            } catch (e) { console.warn(e); }
+        }
+        if (items.length === 0) items = SEED_IMPORTANCIAS.slice();
+        items.sort(() => Math.random() - 0.5);
+        items.forEach((t, i) => setTimeout(() => dropImportancia(t), i * 550 + Math.random() * 200));
+    }
+
+    function pileKey(x, z) {
+        const gx = Math.round(x / PILE_CELL);
+        const gz = Math.round(z / PILE_CELL);
+        return gx + ',' + gz;
+    }
+
+    function layFlat(imp) {
+        const key = pileKey(imp.mesh.position.x, imp.mesh.position.z);
+        const stacked = PILE_GRID.get(key) || 0;
+        PILE_GRID.set(key, stacked + 1);
+
+        imp.targetRotX = -Math.PI / 2;
+        imp.targetRotY = 0;
+        imp.targetRotZ = (Math.random() - 0.5) * Math.PI * 0.5;
+
+        imp.targetY = FLOOR_Y + 0.02 + stacked * PILE_THICKNESS;
+
+        imp.restPhase = 1;
+        playLandSound(imp.highlight);
+    }
+
+    function updateImportancias(dt) {
+        const now = performance.now();
+        const G = -9.0;
+        for (const imp of importancias) {
+            if (imp.restPhase === 0) {
+                imp.vy += G * dt;
+                imp.mesh.position.x += imp.vx * dt;
+                imp.mesh.position.y += imp.vy * dt;
+                imp.mesh.position.z += imp.vz * dt;
+                imp.mesh.rotation.x += imp.vrotX * dt;
+                imp.mesh.rotation.y += imp.vrotY * dt;
+                imp.mesh.rotation.z += imp.vrotZ * dt;
+
+                if (imp.mesh.position.y <= FLOOR_Y + 1.0) {
+                    imp.mesh.position.y = FLOOR_Y + 1.0;
+                    layFlat(imp);
+                }
+            } else if (imp.restPhase === 1) {
+                const k = 8 * dt;
+                imp.mesh.position.y += (imp.targetY - imp.mesh.position.y) * k;
+                imp.mesh.rotation.x += (imp.targetRotX - imp.mesh.rotation.x) * k;
+                imp.mesh.rotation.y += (imp.targetRotY - imp.mesh.rotation.y) * k;
+                imp.mesh.rotation.z += (imp.targetRotZ - imp.mesh.rotation.z) * k;
+                imp.mesh.position.x += imp.vx * dt;
+                imp.mesh.position.z += imp.vz * dt;
+                imp.vx *= 0.85; imp.vz *= 0.85;
+                if (Math.abs(imp.mesh.position.y - imp.targetY) < 0.01 &&
+                    Math.abs(imp.mesh.rotation.x - imp.targetRotX) < 0.02) {
+                    imp.mesh.position.y = imp.targetY;
+                    imp.mesh.rotation.x = imp.targetRotX;
+                    imp.mesh.rotation.y = imp.targetRotY;
+                    imp.mesh.rotation.z = imp.targetRotZ;
+                    imp.restPhase = 2;
+                }
+            }
+
+            if (imp.highlight && now < imp.highlightUntil) {
+                const t = (imp.highlightUntil - now) / 1200;
+                imp.mesh.scale.setScalar(1 + t * 0.4);
+            } else if (imp.highlight) {
+                imp.mesh.scale.setScalar(1);
+                imp.highlight = false;
+            }
+        }
+    }
+
+    // === DRAG TO ROTATE CAMERA (mouse + touch via Pointer Events) ===
+    let isDragging = false, prevX = 0, prevY = 0, dragPointerId = null;
+    let userAngleX = 0, userAngleY = 0;
+    const canvas3d = renderer.domElement;
+    canvas3d.addEventListener('pointerdown', e => {
+        if (e.target !== canvas3d) return;
+        isDragging = true;
+        dragPointerId = e.pointerId;
+        prevX = e.clientX; prevY = e.clientY;
+        canvas3d.setPointerCapture(e.pointerId);
+    });
+    canvas3d.addEventListener('pointermove', e => {
+        if (!isDragging || e.pointerId !== dragPointerId) return;
+        userAngleX += (e.clientX - prevX) * 0.005;
+        userAngleY += (e.clientY - prevY) * 0.003;
+        userAngleY = Math.max(-0.5, Math.min(0.8, userAngleY));
+        prevX = e.clientX;
+        prevY = e.clientY;
+    });
+    const endDrag = e => {
+        if (e.pointerId !== dragPointerId) return;
+        isDragging = false;
+        dragPointerId = null;
+    };
+    canvas3d.addEventListener('pointerup', endDrag);
+    canvas3d.addEventListener('pointercancel', endDrag);
+
+    // === ANIMATION ===
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const time = Date.now() * 0.001;
+        const dt = clock.getDelta();
+
+        const aspectNow = window.innerWidth / window.innerHeight;
+        const radius = aspectNow >= 1 ? 16 : (16 - Math.min(5, (1 - aspectNow) * 10));
+        const camY = 3 + userAngleY * 10;
+        camera.position.set(userAngleX * 5, camY, radius);
+        camera.lookAt(0, 0, 0);
+
+        if (conchaModel) {
+            conchaModel.position.x = 0;
+            conchaModel.position.z = 0;
+            conchaModel.position.y = conchaFloorY;
+            conchaModel.rotation.y = 0;
+            if (conchaMixer) conchaMixer.update(dt);
+        }
+
+        bounceBodies(dt);
+
+        updateImportancias(dt);
+
+        simulateCloth(Date.now());
+        const verts = clothGeo.attributes.position.array;
+        for (let i = 0; i < cloth.particles.length; i++) {
+            verts[i * 3]     = cloth.particles[i].position.x;
+            verts[i * 3 + 1] = cloth.particles[i].position.y;
+            verts[i * 3 + 2] = cloth.particles[i].position.z;
+        }
+        clothGeo.attributes.position.needsUpdate = true;
+        clothGeo.computeVertexNormals();
+
+
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // === TEXT PLACA SEQUENCE ===
+    const show = id => document.getElementById(id).classList.add('visible');
+    const hide = id => document.getElementById(id).classList.remove('visible');
+
+    let experienceStarted = false;
+    function beginExperience() {
+        if (experienceStarted) return;
+        experienceStarted = true;
+        const loader = document.getElementById('loader');
+        if (loader) {
+            loader.classList.add('done');
+            setTimeout(() => loader.classList.add('hidden'), 900);
+        }
+        const c = ensureAudio();
+        if (c && c.state !== 'running') c.resume();
+        if (soundOn) {
+            const p = bgMusic.play();
+            if (p && p.catch) p.catch(() => {});
+        }
+        resizeToViewport();
+        runPlacas();
+    }
+
+    const placaTimers = [];
+    function schedulePlaca(fn, delay) {
+        placaTimers.push(setTimeout(fn, delay));
+    }
+    function cancelPlacaTimers() {
+        while (placaTimers.length) clearTimeout(placaTimers.pop());
+    }
+    function hideAllPlacas() {
+        ['p1','p2','p3','p4','p5','p6','p7'].forEach(id => hide(id));
+    }
+
+    function runPlacas() {
+        let t = 0;
+        schedulePlaca(() => show('p1'), t += 1000);
+        schedulePlaca(() => show('p2'), t += 1000);
+        schedulePlaca(() => { hide('p1'); hide('p2'); }, t += 3000);
+        schedulePlaca(() => show('p3'), t += 800);
+        schedulePlaca(() => show('p4'), t += 1000);
+        schedulePlaca(() => { hide('p3'); hide('p4'); }, t += 3000);
+        schedulePlaca(() => show('p5'), t += 800);
+        schedulePlaca(() => hide('p5'), t += 3000);
+        schedulePlaca(() => show('p6'), t += 800);
+        schedulePlaca(() => hide('p6'), t += 3000);
+        schedulePlaca(() => { show('p7'); document.getElementById('responder-wrap').classList.add('visible'); }, t += 800);
+    }
+
+    btnEntrar.addEventListener('click', beginExperience);
+
+    // === REPLY OVERLAY ===
+    const btnResponder = document.getElementById('btn-responder');
+    function abrirRespuesta() {
+        const overlay = document.getElementById('respuesta-overlay');
+        if (overlay.classList.contains('active')) return;
+        overlay.classList.add('active');
+        overlay.querySelector('textarea').focus();
+    }
+    btnResponder.addEventListener('click', abrirRespuesta);
+    btnResponder.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        abrirRespuesta();
+    }, { passive: false });
+    document.getElementById('btn-cerrar').addEventListener('click', () => {
+        document.getElementById('respuesta-overlay').classList.remove('active');
+    });
+    document.getElementById('respuesta-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'respuesta-overlay') {
+            e.currentTarget.classList.remove('active');
+        }
+    });
+    document.getElementById('btn-enviar').addEventListener('click', () => {
+        const textarea = document.getElementById('respuesta-overlay').querySelector('textarea');
+        const txt = textarea.value.trim();
+        if (!txt) return;
+        document.getElementById('respuesta-overlay').classList.remove('active');
+        textarea.value = '';
+        cancelPlacaTimers();
+        hideAllPlacas();
+        document.getElementById('responder-wrap').classList.remove('visible');
+
+        const cutoffIso = new Date().toISOString();
+
+        dropImportancia(txt, { highlight: true });
+        persistImportancia(txt);
+
+        setTimeout(() => rainPastImportancias(cutoffIso), 1200);
+    });
+
+    function resizeToViewport() {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    }
+    window.addEventListener('resize', resizeToViewport);
+    window.addEventListener('orientationchange', () => setTimeout(resizeToViewport, 300));
+</script>
+<div id="credit">by <a href="https://danielaregert.com.ar/" style="color:white">Daniela Regert</a></div>
+</body>
+</html>
