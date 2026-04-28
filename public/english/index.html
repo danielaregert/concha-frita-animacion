@@ -451,7 +451,7 @@
     let conchaModel = null, conchaAngle = 0, conchaFloorY = -5;
     let conchaMixer = null;
     const gltfLoader = new THREE.GLTFLoader();
-    gltfLoader.load('../concha-frita-animated.glb', (gltf) => {
+    gltfLoader.load('https://nohagasnada.danielaregert.com.ar/concha-frita-animated.glb', (gltf) => {
         conchaModel = gltf.scene;
         const bb = new THREE.Box3().setFromObject(conchaModel);
         const s = 5 / (bb.getSize(new THREE.Vector3()).y || 1);
@@ -605,7 +605,7 @@
     // === BACKGROUND MUSIC + LANDING SOUND ===
     let soundOn = true;
 
-    const bgMusic = new Audio('../bossa.mp3');
+    const bgMusic = new Audio('https://nohagasnada.danielaregert.com.ar/bossa.mp3');
     bgMusic.loop = true;
     bgMusic.volume = 0.5;
     bgMusic.preload = 'auto';
